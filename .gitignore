@@ -33,15 +33,12 @@ Thumbs.db
 *.zip
 *.latest.zip
 
-# Configuration files (keep structure but not values)
+# Plugin configuration copied out of Dalamud's config folder
 config.json
 
-# Documentation (as requested)
-DALAMUD_API_REFERENCE.md
-SUBMISSION_GUIDE.md
-
-# Submission files (local only)
-D17_Submission/
+# Python (tools/make_icon.py)
+__pycache__/
+*.pyc
 
 # Logs
 *.log

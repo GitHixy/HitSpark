@@ -535,6 +535,12 @@ public static class BuiltInPresets
             s.Aggregation.WindowMs = 1400f;
         }
 
+        // Each EXP gain is its own event, as in the chat log: two kills landing together must not
+        // read as one sum, and the exact figure matters more than a short one.
+        var exp = preset.Styles[Category.Experience];
+        exp.Aggregation.Enabled = false;
+        exp.Text.Abbreviate = false;
+
         return preset;
     }
 

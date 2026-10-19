@@ -30,7 +30,6 @@ public sealed unsafe class EventPipeline : IDisposable
     private readonly ConfigurationService configService;
     private readonly PresetService presets;
     private readonly FlyRenderer renderer;
-    private readonly GameDataCache gameData;
     private readonly ScreenLogHooks hooks;
     private readonly Queue<DateTime> recentErrors = new();
     private readonly Stopwatch clock = Stopwatch.StartNew();
@@ -49,12 +48,11 @@ public sealed unsafe class EventPipeline : IDisposable
     public bool HooksActive => hooks.IsActive;
     public bool TickHookActive => hooks.TickHookActive;
 
-    public EventPipeline(ConfigurationService configService, PresetService presets, FlyRenderer renderer, GameDataCache gameData)
+    public EventPipeline(ConfigurationService configService, PresetService presets, FlyRenderer renderer)
     {
         this.configService = configService;
         this.presets = presets;
         this.renderer = renderer;
-        this.gameData = gameData;
 
         hooks = new ScreenLogHooks(HandleEntry, OnHookError);
         if (!hooks.Enable())
@@ -91,7 +89,7 @@ public sealed unsafe class EventPipeline : IDisposable
 
         var kind = (FlyTextKind)entry->ScreenLogKind;
         var option = (ScreenLogOption)entry->Option;
-        var category = EventClassifier.Classify(kind, option, entry->ActionKind, entry->ActionId, entry->SourceRelation, entry->TargetRelation);
+        var category = EventClassifier.Classify(kind, option, entry->ActionId, tick.Valid, entry->SourceRelation, entry->TargetRelation);
         var style = presets.Compiled[category];
 
         var active = !Config.NativeMode && TripReason is null && RendererAlive;
@@ -108,7 +106,7 @@ public sealed unsafe class EventPipeline : IDisposable
         var tickSource = "-";
         uint tickStatus = 0;
         if (category is Category.DamageOverTime or Category.HealOverTime)
-            involvement = AttributeTick(context, tick, involvement, out tickStatus, out tickSource);
+            involvement = AttributeTick(context, tick, category == Category.DamageOverTime, involvement, out tickStatus, out tickSource);
 
         string decision;
         bool owned;
@@ -137,7 +135,7 @@ public sealed unsafe class EventPipeline : IDisposable
             if (tickStatus != 0)
             {
                 // Name and icon of the DoT/HoT itself ("Combust III"), for styles that show them.
-                var status = gameData.Status(tickStatus);
+                var status = GameSheets.Status(tickStatus);
                 request.Name = status.Name.Length > 0 ? status.Name : null;
                 request.IconId = status.Icon;
             }
@@ -188,16 +186,16 @@ public sealed unsafe class EventPipeline : IDisposable
             case Category.DebuffLost:
             {
                 // Status kinds carry the status id in the first value.
-                var status = gameData.Status((uint)value1);
-                r.Word = status.Name.Length > 0 ? status.Name : "Status";
+                var status = GameSheets.Status((uint)value1);
+                r.Word = status.Name.Length > 0 ? status.Name : GameSheets.StatusWord;
                 r.IconId = status.Icon;
                 break;
             }
 
             case Category.Loot:
             {
-                var item = gameData.Item(actionId);
-                r.Word = item.Name.Length > 0 ? item.Name : "Item";
+                var item = GameSheets.Item(actionId);
+                r.Word = item.Name.Length > 0 ? item.Name : GameSheets.ItemWord;
                 r.IconId = item.Icon;
                 if (value1 > 1) r.Unit = $" ×{value1}";
                 break;
@@ -218,7 +216,7 @@ public sealed unsafe class EventPipeline : IDisposable
                 }
                 else if (kind == FlyTextKind.Named && actionId != 0)
                 {
-                    r.Word = gameData.Action(actionId).Name;
+                    r.Word = GameSheets.Action(actionId).Name;
                 }
                 else
                 {
@@ -229,7 +227,7 @@ public sealed unsafe class EventPipeline : IDisposable
 
                 if (entry->ActionKind == 1 && actionId != 0)
                 {
-                    var action = gameData.Action(actionId);
+                    var action = GameSheets.Action(actionId);
                     r.Name = action.Name.Length > 0 ? action.Name : null;
                     r.IconId = action.Icon;
                 }
@@ -248,11 +246,18 @@ public sealed unsafe class EventPipeline : IDisposable
     }
 
     /// <summary>
+    /// Ground and channelled DoTs. They put no debuff on the enemy: the only status involved is a
+    /// beneficial one on whoever placed them (Salted Earth, Doton, Slipstream, Flamethrower).
+    /// </summary>
+    private static readonly HashSet<uint> CasterSideDots = [749, 3036, 501, 3187, 2706, 3225, 1205, 1455];
+
+    /// <summary>
     /// Who a DoT/HoT tick belongs to. Prefers the source the game passed while processing the
-    /// tick; otherwise looks for a debuff on the target applied by you, then by your party.
+    /// tick; otherwise looks for a DoT (or HoT) on the target applied by you, then by your party.
+    /// Only statuses that actually tick count: a Reprisal or Chain Stratagem never names a tick.
     /// </summary>
     private Involvement AttributeTick(in ScreenLogHooks.CallContext context, in ScreenLogHooks.TickContext tick,
-        Involvement fallback, out uint statusId, out string how)
+        bool damage, Involvement fallback, out uint statusId, out string how)
     {
         statusId = 0;
         how = "relations";
@@ -266,7 +271,9 @@ public sealed unsafe class EventPipeline : IDisposable
         {
             // The server usually leaves the status id out of the tick: if the source has exactly
             // one debuff on the target, that's the one ticking.
-            statusId = tick.StatusId != 0 ? tick.StatusId : SoleDebuffFrom(manager, tick.SourceEntityId);
+            statusId = tick.StatusId != 0 ? tick.StatusId : SoleTickingStatusFrom(manager, tick.SourceEntityId, damage);
+            if (statusId == 0 && damage)
+                statusId = CasterSideDotOf(tick.SourceEntityId);
             how = $"hook:{tick.SourceEntityId:X}";
             return InvolvementOf(tick.SourceEntityId, localId);
         }
@@ -277,8 +284,7 @@ public sealed unsafe class EventPipeline : IDisposable
         for (var i = 0; i < 60; i++)
         {
             ref var status = ref manager->Status[i];
-            if (status.StatusId == 0) continue;
-            if (!gameData.Status(status.StatusId).Detrimental) continue;
+            if (status.StatusId == 0 || !GameSheets.Ticks(status.StatusId, damage)) continue;
 
             var who = InvolvementOf((uint)status.SourceObject.ObjectId, localId);
             if (who == Involvement.You)
@@ -299,8 +305,11 @@ public sealed unsafe class EventPipeline : IDisposable
         return best;
     }
 
-    /// <summary>The only debuff <paramref name="sourceId"/> has on this actor, or 0 if none or several.</summary>
-    private uint SoleDebuffFrom(StatusManager* manager, uint sourceId)
+    /// <summary>
+    /// The only DoT (or HoT) <paramref name="sourceId"/> has on this actor, or 0 if none or several:
+    /// a Bard with both bites up can't be told apart from the tick alone.
+    /// </summary>
+    private uint SoleTickingStatusFrom(StatusManager* manager, uint sourceId, bool damage)
     {
         if (manager == null) return 0;
 
@@ -309,12 +318,39 @@ public sealed unsafe class EventPipeline : IDisposable
         {
             ref var status = ref manager->Status[i];
             if (status.StatusId == 0 || (uint)status.SourceObject.ObjectId != sourceId) continue;
-            if (!gameData.Status(status.StatusId).Detrimental) continue;
+            if (!GameSheets.Ticks(status.StatusId, damage)) continue;
             if (found != 0) return 0;
             found = status.StatusId;
         }
 
         return found;
+    }
+
+    /// <summary>The ground or channelled DoT <paramref name="sourceId"/> is maintaining, or 0.</summary>
+    private static uint CasterSideDotOf(uint sourceId)
+    {
+        var manager = GameObjectManager.Instance();
+        if (manager == null) return 0;
+
+        for (var i = 0; i < 200; i++)
+        {
+            var obj = manager->Objects.IndexSorted[i].Value;
+            if (obj == null || obj->EntityId != sourceId) continue;
+            if (!obj->IsCharacter()) return 0;
+
+            var statuses = ((Character*)obj)->GetStatusManager();
+            if (statuses == null) return 0;
+
+            for (var s = 0; s < 60; s++)
+            {
+                var id = statuses->Status[s].StatusId;
+                if (id != 0 && CasterSideDots.Contains(id)) return id;
+            }
+
+            return 0;
+        }
+
+        return 0;
     }
 
     /// <summary>You (or your pet), a party member, or someone else.</summary>
@@ -328,7 +364,8 @@ public sealed unsafe class EventPipeline : IDisposable
                 return Involvement.Party;
         }
 
-        // Pets and summons count as their owner.
+        // Pets and summons count as their owner. Trust and duty support NPCs are "owned" by the
+        // player too, but they fight on their own: they are your party, not you.
         var manager = GameObjectManager.Instance();
         if (manager != null)
         {
@@ -336,6 +373,8 @@ public sealed unsafe class EventPipeline : IDisposable
             {
                 var obj = manager->Objects.IndexSorted[i].Value;
                 if (obj == null || obj->EntityId != entityId) continue;
+                if (obj->ObjectKind == ObjectKind.BattleNpc && obj->SubKind == (byte)BattleNpcSubKind.NpcPartyMember)
+                    return Involvement.Party;
                 if (obj->OwnerId == localId) return Involvement.You;
                 break;
             }

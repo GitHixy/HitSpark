@@ -25,8 +25,8 @@ public sealed class PreviewCanvas
     public PreviewCanvas(Plugin plugin)
     {
         this.plugin = plugin;
-        renderer = new FlyRenderer(plugin.Fonts, plugin.GameData, worldSpace: false);
-        source = new TestEventSource(plugin.GameData);
+        renderer = new FlyRenderer(plugin.Fonts, worldSpace: false);
+        source = new TestEventSource();
         emit = Emit;
     }
 

@@ -48,7 +48,6 @@ public sealed class TestEventSource
     private static readonly uint[] BuffStatuses = [158, 1204, 76, 150];
     private static readonly uint[] DebuffStatuses = [143, 179, 144, 3];
 
-    private readonly GameDataCache gameData;
     private readonly Random random = new(1234);
     private float timer;
     private int index;
@@ -60,11 +59,6 @@ public sealed class TestEventSource
 
     /// <summary>Speed multiplier for the script.</summary>
     public float Rate { get; set; } = 1f;
-
-    public TestEventSource(GameDataCache gameData)
-    {
-        this.gameData = gameData;
-    }
 
     public void Reset()
     {
@@ -148,45 +142,45 @@ public sealed class TestEventSource
             case Category.DebuffLost:
             {
                 var pool = category is Category.DebuffGained or Category.DebuffLost ? DebuffStatuses : BuffStatuses;
-                var status = gameData.Status(pool[random.Next(pool.Length)]);
-                r.Word = status.Name.Length > 0 ? status.Name : "Status";
+                var status = GameSheets.Status(pool[random.Next(pool.Length)]);
+                r.Word = status.Name.Length > 0 ? status.Name : GameSheets.StatusWord;
                 r.IconId = status.Icon;
                 r.DamageKind = DamageKind.None;
                 return r;
             }
 
             case Category.Miss:
-                r.Word = "Miss";
+                r.Word = GameSheets.Miss;
                 break;
             case Category.Evade:
-                r.Word = "Evade";
+                r.Word = GameSheets.Dodge;
                 break;
             case Category.Immune:
-                r.Word = "Invulnerable";
+                r.Word = GameSheets.Invulnerable;
                 break;
             case Category.StatusResisted:
-                r.Word = "Resisted";
+                r.Word = GameSheets.Resist;
                 break;
             case Category.Interrupted:
-                r.Word = "Interrupted";
+                r.Word = GameSheets.Interrupted;
                 break;
             case Category.Loot:
-                r.Word = "Loot";
+                r.Word = GameSheets.ItemWord;
                 break;
             case Category.Crafting:
-                r.Word = "Quality";
+                r.Word = GameSheets.Quality;
                 r.HasNumber = true;
                 r.Value = random.Next(180, 620);
                 break;
             case Category.Resource:
                 r.HasNumber = true;
                 r.Value = random.Next(4, 11) * 100;
-                r.Unit = " MP";
+                r.Unit = GameSheets.Mp;
                 break;
             case Category.Experience:
                 r.HasNumber = true;
                 r.Value = random.Next(12_000, 95_000);
-                r.Unit = " EXP";
+                r.Unit = GameSheets.Exp;
                 break;
             default:
                 r.HasNumber = true;
@@ -196,7 +190,7 @@ public sealed class TestEventSource
 
         if (r.HasNumber && CategoryInfo.Group(category) is CategoryGroup.Outgoing or CategoryGroup.Healing)
         {
-            var action = gameData.Action(actionId);
+            var action = GameSheets.Action(actionId);
             r.Name = action.Name.Length > 0 ? action.Name : null;
             r.IconId = action.Icon;
         }

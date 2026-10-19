@@ -70,7 +70,6 @@ public sealed unsafe class FlyRenderer
     public bool Trace { get; set; }
     private int traceBudget;
     public FontService Fonts { get; }
-    public GameDataCache GameData { get; }
 
     // Diagnostics
     public int LiveCount { get; private set; }
@@ -87,10 +86,9 @@ public sealed unsafe class FlyRenderer
         }
     }
 
-    public FlyRenderer(FontService fonts, GameDataCache gameData, bool worldSpace)
+    public FlyRenderer(FontService fonts, bool worldSpace)
     {
         Fonts = fonts;
-        GameData = gameData;
         this.worldSpace = worldSpace;
     }
 

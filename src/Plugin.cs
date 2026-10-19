@@ -49,7 +49,6 @@ public sealed class Plugin : IDalamudPlugin
 
     // Plugin Services
     public ConfigurationService ConfigService { get; }
-    public GameDataCache GameData { get; }
     public FontService Fonts { get; }
     public PresetService Presets { get; }
     public FlyRenderer WorldRenderer { get; }
@@ -74,15 +73,14 @@ public sealed class Plugin : IDalamudPlugin
             Log.Info("HitSpark plugin initializing...");
 
             ConfigService = new ConfigurationService();
-            GameData = new GameDataCache();
             Fonts = new FontService();
             Presets = new PresetService(ConfigService);
 
-            WorldRenderer = new FlyRenderer(Fonts, GameData, worldSpace: true) { Preset = Presets.Compiled };
+            WorldRenderer = new FlyRenderer(Fonts, worldSpace: true) { Preset = Presets.Compiled };
             Presets.Changed += compiled => WorldRenderer.Preset = compiled;
-            WorldTest = new TestEventSource(GameData);
+            WorldTest = new TestEventSource();
 
-            Pipeline = new EventPipeline(ConfigService, Presets, WorldRenderer, GameData);
+            Pipeline = new EventPipeline(ConfigService, Presets, WorldRenderer);
 
             ConfigWindow = new ConfigWindow(this);
             ChangelogWindow = new ChangelogWindow(this);

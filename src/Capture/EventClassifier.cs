@@ -1,6 +1,7 @@
 using Dalamud.Game.Gui.FlyText;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using HitSpark.Models;
+using HitSpark.Services;
 
 namespace HitSpark.Capture;
 
@@ -10,25 +11,27 @@ namespace HitSpark.Capture;
 /// </summary>
 public static class EventClassifier
 {
-    /// <summary>ActionKind value for a regular action (the Action sheet).</summary>
-    private const byte ActionKindAction = 1;
-
     /// <summary>
-    /// Damage and heals over time share their kind with auto-attacks and plain heals. Ticks come
-    /// from a status update rather than an action, so they carry no action; anything with an
-    /// action attached - the player's Attack/Shot, a pet's or companion's attack - is a hit.
-    /// Erring this way keeps pet auto-attacks from being labelled as ticks.
-    /// (Hypothesis H4 in docs/DESIGN.md; confirm with the event recorder.)
+    /// Damage and heals over time share their kind with auto-attacks and plain heals. A tick comes
+    /// from a status update rather than an action: it either arrives while the game processes a
+    /// DoT/HoT (<paramref name="inTick"/>, from the ProcessHotDot hook) or carries no action at all
+    /// (<c>action=0:0</c>, verified on AST Combust III). Anything with an action attached is a hit,
+    /// whatever sheet the action comes from: the player's Attack/Shot, a pet's or automaton's
+    /// attack, a companion's action or an item. (Hypothesis H4 in docs/DESIGN.md.)
     /// </summary>
-    public static bool IsOverTime(byte actionKind, uint actionId)
-        => actionKind != ActionKindAction || actionId == 0;
+    public static bool IsOverTime(uint actionId, bool inTick)
+        => inTick || actionId == 0;
 
     public static Category Classify(
-        FlyTextKind kind, ScreenLogOption option, byte actionKind, uint actionId,
+        FlyTextKind kind, ScreenLogOption option, uint actionId, bool inTick,
         ScreenLogRelationKind source, ScreenLogRelationKind target)
     {
-        var incoming = target == ScreenLogRelationKind.LocalPlayer && source != ScreenLogRelationKind.LocalPlayer;
         var toYou = target == ScreenLogRelationKind.LocalPlayer;
+        var overTime = IsOverTime(actionId, inTick);
+
+        // Ticks name the afflicted actor as their own source, so a DoT ticking on you reads as
+        // "you on you": that's damage you take, not a DoT you applied.
+        var incoming = toYou && (source != ScreenLogRelationKind.LocalPlayer || overTime);
 
         switch (kind)
         {
@@ -38,7 +41,7 @@ public static class EventClassifier
             case FlyTextKind.AutoAttackOrDotCritDh:
                 if (incoming)
                     return IncomingDamage(kind, option);
-                if (IsOverTime(actionKind, actionId))
+                if (overTime)
                     return Category.DamageOverTime;
                 return kind switch
                 {
@@ -70,7 +73,7 @@ public static class EventClassifier
 
             case FlyTextKind.Healing:
                 if (toYou) return Category.HealReceived;
-                return IsOverTime(actionKind, actionId) ? Category.HealOverTime : Category.Heal;
+                return overTime ? Category.HealOverTime : Category.Heal;
 
             case FlyTextKind.HealingCrit:
                 return toYou ? Category.HealReceived : Category.CriticalHeal;
@@ -156,48 +159,48 @@ public static class EventClassifier
     }
 
     /// <summary>
-    /// The fixed word shown for text-only kinds, or null when the kind shows a number.
-    /// These are static literals, so returning them never allocates.
+    /// The word shown for text-only kinds, or null when the kind shows a number.
+    /// Taken from the game's sheets, so it is in the client's language.
     /// </summary>
     public static string? WordFor(FlyTextKind kind) => kind switch
     {
-        FlyTextKind.Miss or FlyTextKind.NamedMiss => "Miss",
-        FlyTextKind.Dodge or FlyTextKind.NamedDodge => "Evade",
-        FlyTextKind.Invulnerable => "Invulnerable",
-        FlyTextKind.DebuffInvulnerable => "Invulnerable",
-        FlyTextKind.FullyResisted or FlyTextKind.Resist or FlyTextKind.DebuffResisted => "Resisted",
-        FlyTextKind.HasNoEffect or FlyTextKind.DebuffNoEffect => "No Effect",
-        FlyTextKind.Reflect => "Reflect",
-        FlyTextKind.Reflected => "Reflected",
-        FlyTextKind.Interrupted => "Interrupted",
-        FlyTextKind.Incapacitated => "Incapacitated",
+        FlyTextKind.Miss or FlyTextKind.NamedMiss => GameSheets.Miss,
+        FlyTextKind.Dodge or FlyTextKind.NamedDodge => GameSheets.Dodge,
+        FlyTextKind.Invulnerable => GameSheets.Invulnerable,
+        FlyTextKind.DebuffInvulnerable => GameSheets.Invulnerable,
+        FlyTextKind.FullyResisted or FlyTextKind.Resist or FlyTextKind.DebuffResisted => GameSheets.Resist,
+        FlyTextKind.HasNoEffect or FlyTextKind.DebuffNoEffect => GameSheets.NoEffect,
+        FlyTextKind.Reflect => GameSheets.Reflect,
+        FlyTextKind.Reflected => GameSheets.Reflected,
+        FlyTextKind.Interrupted => GameSheets.Interrupted,
+        FlyTextKind.Incapacitated => GameSheets.Incapacitated,
         _ => null,
     };
 
     /// <summary>Unit suffix for resource and progress kinds.</summary>
     public static string? UnitFor(FlyTextKind kind) => kind switch
     {
-        FlyTextKind.MpDrain or FlyTextKind.MpRegen or FlyTextKind.NamedCriticalHitWithMp => " MP",
-        FlyTextKind.NamedTp or FlyTextKind.NamedCriticalHitWithTp => " TP",
-        FlyTextKind.EpRegen => " EP",
-        FlyTextKind.CpRegen => " CP",
-        FlyTextKind.GpRegen => " GP",
-        FlyTextKind.HpDrain => " HP",
-        FlyTextKind.Exp => " EXP",
-        FlyTextKind.IslandExp => " Island EXP",
-        FlyTextKind.PhantomExp => " Phantom EXP",
-        FlyTextKind.Knowledge => " Knowledge",
-        FlyTextKind.Dataset => " Data",
+        FlyTextKind.MpDrain or FlyTextKind.MpRegen or FlyTextKind.NamedCriticalHitWithMp => GameSheets.Mp,
+        FlyTextKind.NamedTp or FlyTextKind.NamedCriticalHitWithTp => GameSheets.Tp,
+        FlyTextKind.EpRegen => GameSheets.Ep,
+        FlyTextKind.CpRegen => GameSheets.Cp,
+        FlyTextKind.GpRegen => GameSheets.Gp,
+        FlyTextKind.HpDrain => GameSheets.Hp,
+        FlyTextKind.Exp => GameSheets.Exp,
+        FlyTextKind.IslandExp => GameSheets.IslandExp,
+        FlyTextKind.PhantomExp => GameSheets.PhantomExp,
+        FlyTextKind.Knowledge => GameSheets.Knowledge,
+        FlyTextKind.Dataset => GameSheets.Data,
         _ => null,
     };
 
     /// <summary>Prefix word for crafting kinds, which read better as "Quality +123".</summary>
     public static string? CraftingLabel(FlyTextKind kind) => kind switch
     {
-        FlyTextKind.CraftingProgress => "Progress",
+        FlyTextKind.CraftingProgress => GameSheets.Progress,
         FlyTextKind.CraftingQuality or FlyTextKind.CraftingQualityCrit or FlyTextKind.CraftingQualityDh
-            or FlyTextKind.CraftingQualityCritDh => "Quality",
-        FlyTextKind.Collectability or FlyTextKind.CollectabilityCrit => "Collectability",
+            or FlyTextKind.CraftingQualityCritDh => GameSheets.Quality,
+        FlyTextKind.Collectability or FlyTextKind.CollectabilityCrit => GameSheets.Collectability,
         _ => null,
     };
 }

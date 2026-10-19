@@ -104,10 +104,15 @@ game queued for display, and it drops pop-ups beyond the game's own display dist
   Incapacitated. Every value of `FlyTextKind` maps to exactly one category (unit-tested with a
   switch that the compiler checks for exhaustiveness).
 - AutoAttack vs DoT (and Heal vs HoT) share kinds. Ticks come from a status update, not an
-  action, so an entry with no action (`actionKind != 1` or `actionId == 0`) is a tick; anything
-  carrying an action - Attack/Shot, pet and companion attacks - is a hit. This errs on the side
-  of never labelling a pet's auto-attack as a DoT. *Hypothesis H4*, confirmed in M1 from the
-  event recorder (`action=kind:id` on DoT ticks against a striking dummy).
+  action, so an entry raised inside `ProcessHotDot` or carrying no action (`actionId == 0`) is a
+  tick; anything carrying an action, from any sheet - Attack/Shot, pet, automaton and companion
+  attacks, items - is a hit. This errs on the side of never labelling a pet's auto-attack as a
+  DoT. *Hypothesis H4*, confirmed in M1 from the event recorder (`action=kind:id` on DoT ticks
+  against a striking dummy). A tick on the local player (logged "you on you") is damage taken.
+- Ticks are named only from statuses that actually tick (English description says "damage/HP
+  over time"), never from Reprisal-style debuffs. Ground and channelled DoTs (Salted Earth,
+  Doton, Slipstream, Flamethrower) leave no debuff on the enemy; they are named from the
+  beneficial status on the caster.
 - Block/Parry come from `option` (`ScreenLogOption.Blocked/Parried`), not from a kind.
 
 ### 2.5 Ownership and fallback
@@ -204,8 +209,9 @@ flattens arcs to fades.
   instance (crits last). Particles: separate struct pool (1024). Nothing allocates after
   startup; spawn requests go through a fixed ring buffer.
 - **Text**: the number is formatted once at spawn into a fixed `char` buffer inside the
-  instance (`TryFormat`, no strings). Names/status labels come from Lumina/`text1` once per
-  spawn and are interned in a small LRU (the only allocation, off the per-frame path).
+  instance (`TryFormat`, no strings). Names, status labels and words (Miss, Resist, EXP...) are read
+  from the game sheets once per spawn, in the client language (the only allocation, off the
+  per-frame path). Lumina caches the rows, so the plugin keeps no copy of its own.
 - **Text drawing**: Dalamud's ImGui fork spreads a font atlas over several textures (each glyph
   carries a texture index), so writing glyph quads by hand is fragile. HitSpark draws with
   `ImDrawList.AddText(font, size, …, ReadOnlySpan<char>)` — allocation-free, since `ImU8String`

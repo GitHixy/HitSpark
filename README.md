@@ -8,6 +8,7 @@
 
 A complete replacement for Final Fantasy XIV's combat text, built on [Dalamud](https://github.com/goatcorp/Dalamud). Damage, healing, misses, status effects and everything else the game floats is redrawn with better typography, tuned motion and real impact on critical hits — in one of eight built-in looks, or one you make yourself and share with a code.
 
+[![Website](https://img.shields.io/badge/Website-githixypluginffxiv.vercel.app-D6B068?logo=googlechrome&logoColor=white)](https://githixypluginffxiv.vercel.app/plugins/hitspark)
 [![Patreon](https://img.shields.io/badge/Patreon-Support%20me-FF424D?logo=patreon&logoColor=white)](https://www.patreon.com/GitHixy)
 
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)

@@ -54,6 +54,19 @@ public sealed unsafe class FlyRenderer
     private int queueHead;
     private int queueCount;
 
+    // Multi-hit splits waiting for their moment. Only touched while drawing.
+    private readonly SpawnRequest[] delayed = new SpawnRequest[QueueCapacity];
+    private readonly double[] delayedDue = new double[QueueCapacity];
+    private int delayedCount;
+    private volatile uint lastPlayerAction;
+
+    /// <summary>The last action you used; delayed hits of an interruptible split check it.</summary>
+    public uint LastPlayerAction
+    {
+        get => lastPlayerAction;
+        set => lastPlayerAction = value;
+    }
+
     // Actor positions resolved once per frame, however many numbers share the actor.
     private readonly int[] anchorFrame = new int[ObjectSlots];
     private readonly Vector3[] anchorWorld = new Vector3[ObjectSlots];
@@ -119,6 +132,7 @@ public sealed unsafe class FlyRenderer
             queueCount = 0;
         }
 
+        delayedCount = 0;
         for (var i = 0; i < pool.Length; i++) pool[i].Active = false;
         for (var i = 0; i < particles.Length; i++) particles[i].Active = false;
         LiveCount = 0;
@@ -126,19 +140,59 @@ public sealed unsafe class FlyRenderer
 
     private void DrainQueue(in RenderContext ctx)
     {
+        ReleaseDelayed(ctx);
+
         while (true)
         {
             SpawnRequest request;
             lock (queueGate)
             {
-                if (queueCount == 0) return;
+                if (queueCount == 0) break;
                 request = queue[queueHead];
                 queueHead = (queueHead + 1) % QueueCapacity;
                 queueCount--;
             }
 
+            if (request.Delay > 0f)
+            {
+                if (delayedCount == delayed.Length)
+                {
+                    Dropped++;
+                    continue;
+                }
+
+                delayedDue[delayedCount] = ctx.Now + request.Delay;
+                request.Delay = 0f;
+                delayed[delayedCount++] = request;
+                continue;
+            }
+
             Spawn(request, ctx);
         }
+    }
+
+    /// <summary>Spawns the delayed hits that are due, in the order they were queued.</summary>
+    private void ReleaseDelayed(in RenderContext ctx)
+    {
+        var kept = 0;
+        for (var i = 0; i < delayedCount; i++)
+        {
+            if (ctx.Now < delayedDue[i])
+            {
+                delayed[kept] = delayed[i];
+                delayedDue[kept] = delayedDue[i];
+                kept++;
+                continue;
+            }
+
+            ref var r = ref delayed[i];
+            if (r.InterruptAction == 0 || r.InterruptAction == lastPlayerAction)
+                Spawn(r, ctx);
+        }
+
+        for (var i = kept; i < delayedCount; i++)
+            delayed[i] = default;
+        delayedCount = kept;
     }
 
     private void Spawn(in SpawnRequest r, in RenderContext ctx)
@@ -151,7 +205,8 @@ public sealed unsafe class FlyRenderer
 
         // Aggregation: fold into a live instance of the same key if it is still accepting hits.
         var key = (style.AggregateKey == AggregateKey.Target ? r.AggregateTargetKey : r.AggregateActionKey) ^ (ulong)r.Involvement << 48;
-        if (style.Aggregate && r.HasNumber)
+        var aggregate = style.Aggregate && !r.Separate;
+        if (aggregate && r.HasNumber)
         {
             for (var i = 0; i < pool.Length; i++)
             {
@@ -182,9 +237,9 @@ public sealed unsafe class FlyRenderer
         inst.SpawnTime = now;
         inst.LastHit = now;
         inst.PunchStart = now;
-        inst.ReleaseTime = style.Aggregate ? now + style.AggregateWindow : now;
+        inst.ReleaseTime = aggregate ? now + style.AggregateWindow : now;
         inst.HoldAge = Math.Min(style.PopTime + 0.08f, style.Duration * 0.3f);
-        inst.AggregateKey = style.Aggregate ? key : 0;
+        inst.AggregateKey = aggregate ? key : 0;
         inst.Hits = 1;
 
         inst.ActorEntityId = r.ActorEntityId;
@@ -203,6 +258,9 @@ public sealed unsafe class FlyRenderer
         inst.IconId = r.IconId;
         inst.DamageKind = r.DamageKind;
         inst.SizeScale = r.SizeScale > 0f ? r.SizeScale : 1f;
+        inst.ColorOverride = (r.Color & 0xFF) == 0
+            ? default
+            : new Vector4((r.Color >> 24) & 0xFF, (r.Color >> 16) & 0xFF, (r.Color >> 8) & 0xFF, r.Color & 0xFF) / 255f;
         inst.WordFallback = NeedsFallback(style.Font, r.Word) || NeedsFallback(style.Font, r.Unit);
         inst.NameFallback = NeedsFallback(style.Font, r.Name);
 
@@ -668,6 +726,9 @@ public sealed unsafe class FlyRenderer
                 _ => fill,
             };
         }
+
+        if (inst.ColorOverride.W > 0f)
+            fill = inst.ColorOverride;
 
         // Icon beside the number, sized to the text.
         var iconSize = inst.IconId != 0 && s.Icon != IconMode.None ? size * s.IconScale : 0f;

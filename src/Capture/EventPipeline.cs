@@ -30,6 +30,7 @@ public sealed unsafe class EventPipeline : IDisposable
     private readonly ConfigurationService configService;
     private readonly PresetService presets;
     private readonly FlyRenderer renderer;
+    private readonly MultiHitService multiHit;
     private readonly ScreenLogHooks hooks;
     private readonly Queue<DateTime> recentErrors = new();
     private readonly Stopwatch clock = Stopwatch.StartNew();
@@ -48,11 +49,12 @@ public sealed unsafe class EventPipeline : IDisposable
     public bool HooksActive => hooks.IsActive;
     public bool TickHookActive => hooks.TickHookActive;
 
-    public EventPipeline(ConfigurationService configService, PresetService presets, FlyRenderer renderer)
+    public EventPipeline(ConfigurationService configService, PresetService presets, FlyRenderer renderer, MultiHitService multiHit)
     {
         this.configService = configService;
         this.presets = presets;
         this.renderer = renderer;
+        this.multiHit = multiHit;
 
         hooks = new ScreenLogHooks(HandleEntry, OnHookError);
         if (!hooks.Enable())
@@ -94,6 +96,12 @@ public sealed unsafe class EventPipeline : IDisposable
 
         var active = !Config.NativeMode && TripReason is null && RendererAlive;
         var involvement = EventClassifier.Involvement(entry->SourceRelation, entry->TargetRelation);
+
+        // Your own actions, whatever happens to their text: an interruptible split stops when
+        // the next one lands.
+        var byYou = entry->SourceRelation == ScreenLogRelationKind.LocalPlayer && entry->ActionKind == 1;
+        if (byYou)
+            MultiHitService.NoteAction(renderer, entry->ActionId);
 
         // The game applies its own "display flying text / pop-up text" options after this point,
         // so HitSpark has to honour them itself: when the game wouldn't show it, neither do we.
@@ -142,7 +150,13 @@ public sealed unsafe class EventPipeline : IDisposable
 
             request.Involvement = involvement;
             request.SizeScale = Config.ScaleFor(involvement);
-            renderer.Enqueue(request);
+
+            // Multi-hit applies to your action damage on others, the same numbers MultiHit splits.
+            var splittable = byYou
+                             && entry->TargetRelation != ScreenLogRelationKind.LocalPlayer
+                             && kind is FlyTextKind.Damage or FlyTextKind.DamageCrit or FlyTextKind.DamageDh or FlyTextKind.DamageCritDh;
+            if (!splittable || !multiHit.TrySplit(request, entry->ActionId, renderer))
+                renderer.Enqueue(request);
             Replaced++;
             owned = true;
             decision = "replaced";

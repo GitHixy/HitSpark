@@ -54,6 +54,7 @@ public class ConfigurationService : IDisposable
                 if (config != null)
                 {
                     config.UserPresets ??= new();
+                    config.MultiHitGroups ??= new();
                     Plugin.Log.Debug("Configuration loaded from {ConfigPath}", configFilePath);
                     return config;
                 }

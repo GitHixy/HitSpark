@@ -43,6 +43,11 @@ public class Configuration
     /// <summary>User-requested kill switch: hand every category back to the game.</summary>
     public bool NativeMode { get; set; }
 
+    // Multi-hit
+    /// <summary>Split configured actions' damage into several hits.</summary>
+    public bool MultiHitEnabled { get; set; } = true;
+    public List<MultiHitGroup> MultiHitGroups { get; set; } = new();
+
     // Diagnostics
     /// <summary>Write every captured event to the Diagnostics log.</summary>
     public bool LogEvents { get; set; }

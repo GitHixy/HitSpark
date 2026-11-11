@@ -28,6 +28,16 @@ public static class Changelog
 {
     public static readonly Release[] Releases =
     [
+        new("0.2.0", "Multi-hit (beta)",
+        [
+            new(NoteKind.Added, "Multi-hit (beta): one damage number can split into several hits that land with the animation, "
+                                + "for actions (often modded) that strike more than once. Find it in Settings → Multi-hit."),
+            new(NoteKind.Added, "Works with MultiHit's action groups: import them from MultiHit's settings, from an exported .json "
+                                + "file or from the clipboard. Hit timings, shares, colours, custom names, the final total and "
+                                + "interruptible splits all carry over."),
+            new(NoteKind.Added, "Each group and action can be switched on or off, and HitSpark warns you when MultiHit is loaded too, "
+                                + "since it can't see the numbers HitSpark draws."),
+        ]),
         new("0.1.0", "Welcome to HitSpark",
         [
             new(NoteKind.Added, "HitSpark redraws the game's combat text with its own renderer: damage you deal and take, "

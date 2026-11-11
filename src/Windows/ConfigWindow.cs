@@ -14,7 +14,7 @@ using HitSpark.UI;
 
 namespace HitSpark.Windows;
 
-public class ConfigWindow : Window
+public partial class ConfigWindow : Window
 {
     private readonly Plugin plugin;
     private readonly PreviewCanvas presetPreview;
@@ -57,6 +57,7 @@ public class ConfigWindow : Window
         (FontAwesomeIcon.LayerGroup, "Presets", "Pick a look, or share and import one"),
         (FontAwesomeIcon.PaintBrush, "Style editor", "Tune every category of combat text"),
         (FontAwesomeIcon.SlidersH, "General", "Size, opacity, motion and limits"),
+        (FontAwesomeIcon.Stream, "Multi-hit", "Beta · Split damage into hits that follow the animation"),
         (FontAwesomeIcon.Bug, "Diagnostics", "Status, event recorder and bug reports"),
         (FontAwesomeIcon.InfoCircle, "About", "Version, links and credits"),
     ];
@@ -103,13 +104,16 @@ public class ConfigWindow : Window
                         case 0: DrawPresets(); break;
                         case 1: DrawEditor(); break;
                         case 2: DrawGeneral(); break;
-                        case 3: DrawDiagnostics(); break;
-                        case 4: DrawAbout(); break;
+                        case 3: DrawMultiHit(); break;
+                        case 4: DrawDiagnostics(); break;
+                        case 5: DrawAbout(); break;
                     }
 
                     ImGui.Dummy(new Vector2(0, 8));
                 }
             }
+
+            fileDialog.Draw();
 
             if (changed)
             {
@@ -203,6 +207,9 @@ public class ConfigWindow : Window
 
             var ts = ImGui.CalcTextSize(label);
             dl.AddText(new Vector2(min.X + 30, min.Y + (h - ts.Y) * 0.5f), Theme.U32(tint), label);
+
+            if (BetaSections.Contains(label))
+                DrawBetaPill(dl, new Vector2(min.X + 30 + ts.X + 6, min.Y + h * 0.5f));
 
             ImGui.Dummy(new Vector2(0, 2));
         }

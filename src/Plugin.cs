@@ -53,6 +53,7 @@ public sealed class Plugin : IDalamudPlugin
     public PresetService Presets { get; }
     public FlyRenderer WorldRenderer { get; }
     public EventPipeline Pipeline { get; }
+    public MultiHitService MultiHit { get; }
     public TestEventSource WorldTest { get; }
 
     // Windows
@@ -80,7 +81,8 @@ public sealed class Plugin : IDalamudPlugin
             Presets.Changed += compiled => WorldRenderer.Preset = compiled;
             WorldTest = new TestEventSource();
 
-            Pipeline = new EventPipeline(ConfigService, Presets, WorldRenderer);
+            MultiHit = new MultiHitService(ConfigService);
+            Pipeline = new EventPipeline(ConfigService, Presets, WorldRenderer, MultiHit);
 
             ConfigWindow = new ConfigWindow(this);
             ChangelogWindow = new ChangelogWindow(this);

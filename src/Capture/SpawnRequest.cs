@@ -45,6 +45,16 @@ public struct SpawnRequest
     public ulong AggregateActionKey;
     public ulong AggregateTargetKey;
 
+    // Multi-hit splits
+    /// <summary>Seconds to wait before the text appears.</summary>
+    public float Delay;
+    /// <summary>Never folds into another live number, even when the style aggregates.</summary>
+    public bool Separate;
+    /// <summary>Fill colour as 0xRRGGBBAA; 0 alpha keeps the style's colour.</summary>
+    public uint Color;
+    /// <summary>When set, dropped if you used a different action before it was due.</summary>
+    public uint InterruptAction;
+
     /// <summary>Preview-canvas spawns carry fixed screen anchors instead of actors.</summary>
     public bool UseScreenAnchor;
     public Vector2 ScreenActor;

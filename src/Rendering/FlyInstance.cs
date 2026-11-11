@@ -71,6 +71,8 @@ public struct FlyInstance
     public DamageKind DamageKind;
     /// <summary>Size multiplier for other players' numbers; 1 for your own.</summary>
     public float SizeScale;
+    /// <summary>Fill colour override from a multi-hit split; W is 0 when unused.</summary>
+    public Vector4 ColorOverride;
 
     // Aggregation
     public ulong AggregateKey;

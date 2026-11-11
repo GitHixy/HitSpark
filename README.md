@@ -13,7 +13,7 @@ A complete replacement for Final Fantasy XIV's combat text, built on [Dalamud](h
 
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 ![Dalamud API](https://img.shields.io/badge/Dalamud%20API-15-6FB8E0)
-![Version](https://img.shields.io/badge/version-0.1.0-D6B068)
+![Version](https://img.shields.io/badge/version-0.2.0-D6B068)
 
 ---
 
@@ -66,6 +66,14 @@ DoT ticks get their own colour and a small **DoT Tick** caption, so they never b
 ### Other players
 
 Numbers from actions that don't involve you — a party member hitting the boss, a stranger healing their friend — can be shown smaller, or not at all, separately for your party and for everyone else (**Settings → General → Other players**).
+
+### Multi-hit *(beta)*
+
+Some actions — especially modded animations — strike several times but the game shows one number. **Multi-hit** splits that number into hits that land with the animation: each with its own delay, share of the damage and, optionally, colour, plus an optional final total. If you use another action before the hits are done, the rest can be dropped.
+
+It uses the action groups of the [MultiHit](https://github.com/Bluefissure/MultiHit) plugin, so the groups people already share work as they are. Import them in **Settings → Multi-hit** from MultiHit's own settings, from an exported `.json` file, or from the clipboard, then switch each group or action on and off. Only damage from your own actions is split.
+
+While HitSpark draws your damage numbers, MultiHit can't see them, so once your groups are imported you can disable MultiHit; HitSpark tells you when both are loaded. This feature is in beta: if a split looks wrong, a Copy report from **Settings → Diagnostics** helps.
 
 ### Make your own
 
@@ -126,6 +134,7 @@ Settings are grouped into sections down the left of the window. A status light a
 | **Presets** | Preview, choose, duplicate, rename, delete, export and import presets |
 | **Style editor** | Every category of your own presets, with a live preview |
 | **General** | Global size and opacity, reduced motion, other players' numbers, the limit on numbers on screen, native mode, test mode |
+| **Multi-hit** *(beta)* | Import MultiHit action groups and switch groups and actions on or off |
 | **Diagnostics** | Status and counters, an event recorder, the live log, Copy report, and buttons to report a bug or suggest a feature |
 | **About** | Version, release notes, shortcuts and credits |
 
@@ -133,7 +142,7 @@ Settings are grouped into sections down the left of the window. A status light a
 
 ## Your data
 
-Settings and your presets are stored in your Dalamud configuration folder, in `pluginConfigs/HitSpark/config.json`. HitSpark makes no network requests; nothing about you, your character or your combat leaves your PC. Preset codes contain only style settings, and only go where you paste them.
+Settings, your presets and your multi-hit groups are stored in your Dalamud configuration folder, in `pluginConfigs/HitSpark/config.json`. HitSpark reads MultiHit's settings file (`pluginConfigs/MultiHit.json`) only when you press **From MultiHit settings**, and never changes it. HitSpark makes no network requests; nothing about you, your character or your combat leaves your PC. Preset codes contain only style settings, and only go where you paste them.
 
 ---
 
@@ -174,6 +183,8 @@ The built plugin lands in `bin/Release/`. To run it as a dev plugin, copy `HitSp
 ## Release notes
 
 The plugin shows what's new the first time you log in after an update, and you can reopen it any time from **Settings → About → What's new**.
+
+**0.2.0** adds Multi-hit *(beta)*: damage split into hits that follow the animation, compatible with MultiHit's action groups.
 
 **0.1.0** is the first release: the full renderer, eight presets, the style editor, preset sharing, test mode and diagnostics.
 

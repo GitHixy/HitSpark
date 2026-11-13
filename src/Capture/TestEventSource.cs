@@ -22,6 +22,8 @@ public sealed class TestEventSource
         new(Category.DirectHit, 0.4f),
         new(Category.DamageOverTime, 0.25f),
         new(Category.CriticalHit, 0.55f),
+        new(Category.Ability, 0f),
+        new(Category.PositionalHit, 0.45f),
         new(Category.Ability, 0.3f, 3),
         new(Category.DamageTaken, 0.35f),
         new(Category.DamageTaken, 0.2f),
@@ -39,6 +41,8 @@ public sealed class TestEventSource
         new(Category.AutoAttack, 0.3f),
         new(Category.Resource, 0.35f),
         new(Category.StatusLost, 0.45f),
+        new(Category.Ability, 0f),
+        new(Category.PositionalMiss, 0.4f),
         new(Category.Experience, 0.6f),
     ];
 
@@ -166,6 +170,12 @@ public sealed class TestEventSource
                 break;
             case Category.Loot:
                 r.Word = GameSheets.ItemWord;
+                break;
+            case Category.PositionalHit:
+            case Category.PositionalMiss:
+                r.Word = EventPipeline.PositionalWord(random.Next(2) == 0 ? PositionalSide.Rear : PositionalSide.Flank,
+                    category == Category.PositionalHit);
+                r.DamageKind = DamageKind.None;
                 break;
             case Category.Crafting:
                 r.Word = GameSheets.Quality;

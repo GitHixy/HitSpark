@@ -28,6 +28,18 @@ public static class Changelog
 {
     public static readonly Release[] Releases =
     [
+        new("0.3.0", "Positionals, and numbers under the UI",
+        [
+            new(NoteKind.Added, "Positionals: on Monk, Dragoon, Ninja, Samurai, Reaper and Viper, a small \"Rear\" or \"Flank\" now "
+                                + "shows up above your damage when you land a positional, and \"Rear missed\" or \"Flank missed\" when "
+                                + "you don't. They have their own styles in every preset, so you can recolour or hide them."),
+            new(NoteKind.Added, "Below game UI (Settings → General): numbers slide under your hotbars, party list, chat and the other "
+                                + "game windows instead of covering them, but stay on top of your target's bars and your own HP/MP. Off by default."),
+            new(NoteKind.Added, "Max distance (Settings → General): numbers from other people farther than 50 yalms away, like a "
+                                + "FATE on the other side of the map, are no longer shown. Set it to whatever you like, or turn the limit off."),
+            new(NoteKind.Fixed, "Numbers, DoT ticks above all, kept showing during cutscenes in the middle of a duty, such as the one "
+                                + "in the final fight of the second Dawntrail alliance raid. HitSpark now hides whenever the game hides its own HUD."),
+        ]),
         new("0.2.0", "Multi-hit (beta)",
         [
             new(NoteKind.Added, "Multi-hit (beta): one damage number can split into several hits that land with the animation, "

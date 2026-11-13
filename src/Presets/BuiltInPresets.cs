@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using HitSpark.Models;
 
@@ -193,6 +194,10 @@ public static class BuiltInPresets
             }),
             [Category.Interrupted] = From(k.Word, s => s.Text.Color = t.Incoming),
             [Category.Other] = From(k.Misc, s => s.Text.Color = t.Misc),
+
+            // A short word just above your damage number, so both read at once.
+            [Category.PositionalHit] = From(k.Word, s => Positional(s, t.Heal)),
+            [Category.PositionalMiss] = From(k.Word, s => Positional(s, t.Incoming)),
         };
 
         return new Preset
@@ -205,6 +210,33 @@ public static class BuiltInPresets
             Styles = styles,
             IsBuiltIn = true,
         };
+    }
+
+    private static void Positional(CategoryStyle s, Vector4 color)
+    {
+        s.Text.Color = color;
+        s.Text.Size *= 0.8f;
+        s.Show = Involvement.You;
+        s.Motion.OffsetY -= 34f;
+        s.Aggregation.Enabled = false;
+    }
+
+    /// <summary>
+    /// Gives a preset every category it lacks, copied from the built-in it was based on (or the
+    /// default). Presets saved before a category existed would otherwise get a bare style.
+    /// </summary>
+    public static bool FillMissing(Preset preset)
+    {
+        var source = All.FirstOrDefault(b => b.Name == preset.BasedOn) ?? All.First(b => b.Id == DefaultId);
+        var changed = false;
+        foreach (var category in CategoryInfo.All)
+        {
+            if (preset.Styles.ContainsKey(category) || !source.Styles.TryGetValue(category, out var style)) continue;
+            preset.Styles[category] = style.Clone();
+            changed = true;
+        }
+
+        return changed;
     }
 
     private static Vector4 Rgb(int r, int g, int b, float a = 1f) => new(r / 255f, g / 255f, b / 255f, a);

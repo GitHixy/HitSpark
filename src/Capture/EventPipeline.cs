@@ -32,6 +32,7 @@ public sealed unsafe class EventPipeline : IDisposable
     private readonly FlyRenderer renderer;
     private readonly MultiHitService multiHit;
     private readonly ScreenLogHooks hooks;
+    private readonly PositionalTracker positionals;
     private readonly Queue<DateTime> recentErrors = new();
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private double lastRendererFrame = double.NegativeInfinity;
@@ -40,6 +41,7 @@ public sealed unsafe class EventPipeline : IDisposable
     public long Captured { get; private set; }
     public long Replaced { get; private set; }
     public long Hidden { get; private set; }
+    public long TooFar { get; private set; }
     public long LeftNative { get; private set; }
     public long Errors { get; private set; }
 
@@ -48,6 +50,7 @@ public sealed unsafe class EventPipeline : IDisposable
     public string? HookFailure => hooks.FailureReason;
     public bool HooksActive => hooks.IsActive;
     public bool TickHookActive => hooks.TickHookActive;
+    public bool EffectHookActive => positionals.HookActive;
 
     public EventPipeline(ConfigurationService configService, PresetService presets, FlyRenderer renderer, MultiHitService multiHit)
     {
@@ -63,6 +66,7 @@ public sealed unsafe class EventPipeline : IDisposable
                    "This usually means a game patch; check Settings → Diagnostics.");
         }
 
+        positionals = new PositionalTracker(() => Config.LogEvents);
         Plugin.FlyTextGui.FlyTextCreated += OnFlyTextCreated;
     }
 
@@ -116,6 +120,11 @@ public sealed unsafe class EventPipeline : IDisposable
         if (category is Category.DamageOverTime or Category.HealOverTime)
             involvement = AttributeTick(context, tick, category == Category.DamageOverTime, involvement, out tickStatus, out tickSource);
 
+        // The text belongs to whoever it happened to: the target of the call, else the queue's owner.
+        var actor = context.Valid && context.Target != null ? (GameObject*)context.Target : FindQueueOwner(queue, context);
+
+        var damageKind = kind is FlyTextKind.Damage or FlyTextKind.DamageCrit or FlyTextKind.DamageDh or FlyTextKind.DamageCritDh;
+
         string decision;
         bool owned;
         if (!gameShows)
@@ -131,6 +140,14 @@ public sealed unsafe class EventPipeline : IDisposable
             owned = false;
             decision = active ? "native" : "native (inactive)";
         }
+        else if (involvement != Involvement.You && IsTooFar(actor))
+        {
+            // Someone else's fight across the map (a FATE, another alliance): not worth a number.
+            TooFar++;
+            Hidden++;
+            owned = true;
+            decision = "too far";
+        }
         else if (style.Mode == CategoryMode.Hide || (style.Show & involvement) == 0 || !Config.Allows(involvement))
         {
             Hidden++;
@@ -139,7 +156,7 @@ public sealed unsafe class EventPipeline : IDisposable
         }
         else
         {
-            var request = BuildRequest(queue, entry, context, kind, category);
+            var request = BuildRequest(entry, actor, kind, category);
             if (tickStatus != 0)
             {
                 // Name and icon of the DoT/HoT itself ("Combust III"), for styles that show them.
@@ -152,9 +169,7 @@ public sealed unsafe class EventPipeline : IDisposable
             request.SizeScale = Config.ScaleFor(involvement);
 
             // Multi-hit applies to your action damage on others, the same numbers MultiHit splits.
-            var splittable = byYou
-                             && entry->TargetRelation != ScreenLogRelationKind.LocalPlayer
-                             && kind is FlyTextKind.Damage or FlyTextKind.DamageCrit or FlyTextKind.DamageDh or FlyTextKind.DamageCritDh;
+            var splittable = byYou && damageKind && entry->TargetRelation != ScreenLogRelationKind.LocalPlayer;
             if (!splittable || !multiHit.TrySplit(request, entry->ActionId, renderer))
                 renderer.Enqueue(request);
             Replaced++;
@@ -162,26 +177,73 @@ public sealed unsafe class EventPipeline : IDisposable
             decision = "replaced";
         }
 
+        // Positionals ride along with your damage, whoever draws the number itself.
+        if (gameShows && active && byYou && damageKind && actor != null && entry->TargetRelation != ScreenLogRelationKind.LocalPlayer)
+            SpawnPositional(entry->ActionId, actor);
+
         if (Config.LogEvents)
             LogEntry(queue, entry, context, kind, category, involvement, decision, tickSource, tickStatus);
 
         return owned;
     }
 
-    private SpawnRequest BuildRequest(StdDeque<ScreenLogEntry>* queue, ScreenLogEntry* entry, in ScreenLogHooks.CallContext context, FlyTextKind kind, Category category)
+    /// <summary>Whether the actor is beyond the "other players" distance limit from you.</summary>
+    private bool IsTooFar(GameObject* actor)
+    {
+        var limit = Config.MaxDistance;
+        if (limit <= 0f || actor == null) return false;
+
+        var self = (GameObject*)(Plugin.ObjectTable.LocalPlayer?.Address ?? 0);
+        if (self == null) return false;
+
+        var dx = actor->Position.X - self->Position.X;
+        var dy = actor->Position.Y - self->Position.Y;
+        var dz = actor->Position.Z - self->Position.Z;
+        return dx * dx + dy * dy + dz * dz > limit * limit;
+    }
+
+    private void SpawnPositional(uint actionId, GameObject* actor)
+    {
+        if (!PositionalTracker.IsPositional(actionId, out _)) return;
+        if (!positionals.TryResolve(actionId, actor->EntityId, out var side, out var landed)) return;
+
+        var category = landed ? Category.PositionalHit : Category.PositionalMiss;
+        var style = presets.Compiled[category];
+        if (style.Mode != CategoryMode.Replace || (style.Show & Involvement.You) == 0) return;
+
+        var r = new SpawnRequest
+        {
+            Category = category,
+            Word = PositionalWord(side, landed),
+            ActorEntityId = actor->EntityId,
+            ActorIndex = actor->ObjectIndex,
+            Involvement = Involvement.You,
+            SizeScale = 1f,
+            Separate = true,
+        };
+        r.AggregateTargetKey = ((ulong)category << 56) ^ actor->EntityId;
+        r.AggregateActionKey = r.AggregateTargetKey ^ ((ulong)actionId << 24);
+        renderer.Enqueue(r);
+
+        if (Config.LogEvents)
+            Plugin.Log.Debug("[positional] {Action} on {Target}: {Side} {Result}", actionId, Describe(actor), side, landed ? "landed" : "missed");
+    }
+
+    public static string PositionalWord(PositionalSide side, bool landed) => (side, landed) switch
+    {
+        (PositionalSide.Rear, true) => "Rear",
+        (PositionalSide.Flank, true) => "Flank",
+        (PositionalSide.Rear, false) => "Rear missed",
+        _ => "Flank missed",
+    };
+
+    private SpawnRequest BuildRequest(ScreenLogEntry* entry, GameObject* actor, FlyTextKind kind, Category category)
     {
         var r = new SpawnRequest
         {
             Category = category,
             ActorIndex = SpawnRequest.NoActor,
         };
-
-        // The text belongs to whoever it happened to: the target of the call, else the queue's owner.
-        GameObject* actor = null;
-        if (context.Valid && context.Target != null)
-            actor = (GameObject*)context.Target;
-        else
-            actor = FindQueueOwner(queue, context);
 
         if (actor != null)
         {
@@ -511,5 +573,6 @@ public sealed unsafe class EventPipeline : IDisposable
     {
         Plugin.FlyTextGui.FlyTextCreated -= OnFlyTextCreated;
         hooks.Dispose();
+        positionals.Dispose();
     }
 }

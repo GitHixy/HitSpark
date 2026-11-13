@@ -26,6 +26,12 @@ public sealed class PresetService
     public PresetService(ConfigurationService configService)
     {
         this.configService = configService;
+
+        var filled = false;
+        foreach (var preset in Config.UserPresets)
+            filled |= BuiltInPresets.FillMissing(preset);
+        if (filled) configService.Save();
+
         Resolve();
         Recompile();
     }

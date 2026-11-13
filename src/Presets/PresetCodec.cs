@@ -108,6 +108,7 @@ public static class PresetCodec
         p.BasedOn = Clip(p.BasedOn ?? string.Empty, 40);
         p.Palette ??= new Palette();
         p.Styles ??= new();
+        BuiltInPresets.FillMissing(p);
 
         foreach (var category in CategoryInfo.All)
         {

@@ -597,7 +597,11 @@ public partial class ConfigWindow : Window
         }
 
         if (ImGui.IsItemHovered())
-            Theme.Tooltip("HitSpark: drawn by HitSpark with this style. Game: the game's own text, untouched. Hidden: not shown at all.");
+        {
+            Theme.Tooltip(CategoryInfo.IsHitSparkOnly(editCategory)
+                ? "HitSpark: drawn by HitSpark with this style. The game has no text of its own for this, so Game and Hidden both turn it off."
+                : "HitSpark: drawn by HitSpark with this style. Game: the game's own text, untouched. Hidden: not shown at all.");
+        }
 
         ImGui.SameLine(0, 14);
         if (Theme.GhostButton("Copy style", new Vector2(92, 0)))
@@ -956,6 +960,17 @@ public partial class ConfigWindow : Window
         DrawGroupRow("Others", "others", () => Config.ShowOthers, v => Config.ShowOthers = v,
             () => Config.OthersScale, v => Config.OthersScale = v);
 
+        var distance = Config.MaxDistance;
+        Row("Max distance");
+        if (Theme.Slider("##maxDistance", ref distance, 0f, 150f, distance <= 0f ? "No limit" : "%.0f yalms", ControlWidth))
+        {
+            Config.MaxDistance = distance < 1f ? 0f : MathF.Round(distance);
+            saveAt = plugin.Now + 1.0;
+        }
+
+        ImGui.SameLine(0, 8);
+        Theme.HelpMarker("Numbers that don't involve you are dropped when they happen farther away than this, like a FATE across the map. Drag to the left for no limit.");
+
         ImGui.Dummy(new Vector2(0, 8));
         Theme.SectionHeader("Behaviour", FontAwesomeIcon.Cogs);
 
@@ -969,6 +984,17 @@ public partial class ConfigWindow : Window
 
         ImGui.SameLine(0, 8);
         Theme.HelpMarker("Most numbers on screen at once. When full, the oldest and least important make room; crits go last.");
+
+        var below = Config.BelowGameUi;
+        Row("Below game UI");
+        if (Theme.Toggle("##belowGameUi", ref below))
+        {
+            Config.BelowGameUi = below;
+            ConfigService.Save();
+        }
+
+        ImGui.SameLine(0, 8);
+        Theme.HelpMarker("Numbers pass under your hotbars, party list, chat and the other game windows instead of covering them. They stay on top of your target's and focus target's bars and your own HP/MP, which you read along with them. Dalamud windows are not affected.");
 
         var native = Config.NativeMode;
         Row("Native mode");
@@ -991,7 +1017,7 @@ public partial class ConfigWindow : Window
 
         ImGui.Dummy(new Vector2(0, 10));
         Theme.Callout(FontAwesomeIcon.ShieldAlt, "Purely cosmetic",
-            "HitSpark only redraws text the game already shows you, using your game's own display settings. It adds no combat information and never sends data anywhere.",
+            "HitSpark redraws text the game already shows you, using your game's own display settings. The one thing it adds is the positional hint, worked out from where you're standing, and you can turn it off. It never sends data anywhere.",
             Theme.Crystal);
     }
 
@@ -1236,13 +1262,13 @@ public partial class ConfigWindow : Window
         sb.AppendLine($"- Dalamud: {typeof(Dalamud.Plugin.IDalamudPluginInterface).Assembly.GetName().Version}");
         sb.AppendLine($"- Game language: {Plugin.ClientState.ClientLanguage}");
         sb.AppendLine($"- Preset: {Presets.Active.Name}{(Presets.Active.IsBuiltIn ? " (built-in)" : string.Empty)}");
-        sb.AppendLine($"- Hooks: {(pipeline.HooksActive ? "active" : pipeline.HookFailure ?? "inactive")}, tick hook: {(pipeline.TickHookActive ? "active" : "off")}, breaker: {pipeline.TripReason ?? "ok"}, native mode: {Config.NativeMode}");
-        sb.AppendLine($"- Events: captured {pipeline.Captured}, replaced {pipeline.Replaced}, hidden {pipeline.Hidden}, native {pipeline.LeftNative}, errors {pipeline.Errors}");
+        sb.AppendLine($"- Hooks: {(pipeline.HooksActive ? "active" : pipeline.HookFailure ?? "inactive")}, tick hook: {(pipeline.TickHookActive ? "active" : "off")}, effect hook: {(pipeline.EffectHookActive ? "active" : "off")}, breaker: {pipeline.TripReason ?? "ok"}, native mode: {Config.NativeMode}");
+        sb.AppendLine($"- Events: captured {pipeline.Captured}, replaced {pipeline.Replaced}, hidden {pipeline.Hidden} (too far {pipeline.TooFar}), native {pipeline.LeftNative}, errors {pipeline.Errors}");
         var world = plugin.WorldRenderer;
         sb.AppendLine($"- Renderer: spawned {world.Spawned}, live {world.LiveCount}, queued {world.Queued}, peak {world.PeakLive}, dropped {world.Dropped}, " +
                       $"last frame {world.LastFrameMs:0.000} ms, cap {Config.MaxLiveNumbers}");
         sb.AppendLine($"- Game display options: {Capture.GameDisplay.Describe()}");
-        sb.AppendLine($"- World: {(Plugin.HiddenReason is { } hidden ? $"hidden ({hidden})" : "visible")}, frame errors {plugin.FrameErrors}, test mode {plugin.TestMode}");
+        sb.AppendLine($"- World: {(Plugin.HiddenReason is { } hidden ? $"hidden ({hidden})" : "visible")}, max distance {Config.MaxDistance:0}, below game UI {Config.BelowGameUi}, frame errors {plugin.FrameErrors}, test mode {plugin.TestMode}");
         sb.AppendLine($"- Generated: {DateTime.Now:yyyy-MM-dd HH:mm}");
         sb.AppendLine();
         sb.AppendLine("```text");

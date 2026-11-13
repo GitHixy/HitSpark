@@ -24,6 +24,12 @@ public struct RenderContext
     public bool Visible;
     public Vector2 ClipMin;
     public Vector2 ClipMax;
+    /// <summary>
+    /// Screen rectangles (min x, min y, max x, max y) the text must stay out of, so it reads as
+    /// passing under the game's windows. Null or empty draws over everything.
+    /// </summary>
+    public Vector4[]? Occluders;
+    public int OccluderCount;
 }
 
 /// <summary>
@@ -529,7 +535,10 @@ public sealed unsafe class FlyRenderer
             inst.GhostLastSample = now;
         }
 
-        DrawInstance(dl, ref inst, pos, scale * unit, alpha, rotation, flash, ctx);
+        if (ctx.OccluderCount > 0)
+            DrawMasked(dl, ref inst, pos, scale * unit, alpha, rotation, flash, ctx);
+        else
+            DrawInstance(dl, ref inst, pos, scale * unit, alpha, rotation, flash, ctx);
 
         if (inst.SparksPending)
         {
@@ -812,6 +821,150 @@ public sealed unsafe class FlyRenderer
             Rotate(dl, vtxStart, center, rotation);
     }
 
+    // ------------------------------------------------------------------
+    // Under the game's windows
+    // ------------------------------------------------------------------
+
+    private const int MaxMaskRects = 12;
+    private readonly int[] maskRects = new int[MaxMaskRects];
+    private readonly float[] maskXs = new float[MaxMaskRects * 2 + 2];
+    private readonly Vector2[] maskSpans = new Vector2[MaxMaskRects];
+
+    /// <summary>
+    /// ImGui always draws over the game, so "under its windows" is faked: the instance is drawn
+    /// once per free cell of the screen around it, each clipped to that cell, leaving the windows
+    /// it crosses untouched. Instances clear of every window take the ordinary single draw.
+    /// </summary>
+    private void DrawMasked(ImDrawListPtr dl, ref FlyInstance inst, Vector2 center, float scale, float alpha, float rotation, float flash, in RenderContext ctx)
+    {
+        // Where it will be: last frame's extent moved with it, or a generous guess for a new one.
+        var size = inst.Style.Size * scale;
+        var pad = new Vector2(size * 0.6f + 8f);
+        Vector2 min, max;
+        if (inst.HasBounds)
+        {
+            min = center + inst.BoundsMin - pad;
+            max = center + inst.BoundsMax + pad;
+        }
+        else
+        {
+            min = center - new Vector2(size * 4f, size * 1.5f);
+            max = center + new Vector2(size * 4f, size * 2f);
+        }
+
+        var rects = ctx.Occluders!;
+        var hits = 0;
+        for (var i = 0; i < ctx.OccluderCount && hits < MaxMaskRects; i++)
+        {
+            var r = rects[i];
+            if (r.X < max.X && r.Z > min.X && r.Y < max.Y && r.W > min.Y)
+                maskRects[hits++] = i;
+        }
+
+        var start = dl.VtxBuffer.Size;
+        if (hits == 0)
+        {
+            DrawInstance(dl, ref inst, center, scale, alpha, rotation, flash, ctx);
+            RecordBounds(dl, start, center, ref inst);
+            return;
+        }
+
+        // Vertical slabs between the windows' edges; in each, the free spans between windows.
+        var xCount = 0;
+        maskXs[xCount++] = ctx.ClipMin.X;
+        maskXs[xCount++] = ctx.ClipMax.X;
+        for (var i = 0; i < hits; i++)
+        {
+            var r = rects[maskRects[i]];
+            maskXs[xCount++] = Math.Clamp(r.X, ctx.ClipMin.X, ctx.ClipMax.X);
+            maskXs[xCount++] = Math.Clamp(r.Z, ctx.ClipMin.X, ctx.ClipMax.X);
+        }
+
+        Array.Sort(maskXs, 0, xCount);
+
+        var recorded = false;
+        for (var x = 0; x + 1 < xCount; x++)
+        {
+            var x0 = maskXs[x];
+            var x1 = maskXs[x + 1];
+            if (x1 - x0 < 0.5f || x1 <= min.X || x0 >= max.X) continue;
+
+            // Windows covering this whole slab, as vertical spans sorted top to bottom.
+            var spans = 0;
+            for (var i = 0; i < hits; i++)
+            {
+                var r = rects[maskRects[i]];
+                if (r.X <= x0 && r.Z >= x1)
+                    maskSpans[spans++] = new Vector2(r.Y, r.W);
+            }
+
+            Array.Sort(maskSpans, 0, spans, SpanOrder.Instance);
+
+            var y = ctx.ClipMin.Y;
+            for (var i = 0; i <= spans; i++)
+            {
+                var top = i < spans ? maskSpans[i].X : ctx.ClipMax.Y;
+                if (top > y && top > min.Y && y < max.Y)
+                {
+                    dl.PushClipRect(new Vector2(x0, y), new Vector2(x1, top), true);
+                    var before = dl.VtxBuffer.Size;
+                    DrawInstance(dl, ref inst, center, scale, alpha, rotation, flash, ctx);
+                    if (!recorded)
+                    {
+                        RecordBounds(dl, before, center, ref inst);
+                        recorded = true;
+                    }
+
+                    dl.PopClipRect();
+                }
+
+                if (i < spans) y = Math.Max(y, maskSpans[i].Y);
+            }
+        }
+    }
+
+    /// <summary>Remembers the extent of what was just drawn, relative to its centre.</summary>
+    private static void RecordBounds(ImDrawListPtr dl, int start, Vector2 center, ref FlyInstance inst)
+    {
+        ref var buffer = ref dl.VtxBuffer;
+        var end = buffer.Size;
+        if (end <= start) return;
+
+        var data = buffer.Data;
+        var min = new Vector2(float.MaxValue);
+        var max = new Vector2(float.MinValue);
+        for (var i = start; i < end; i++)
+        {
+            var p = data[i].Pos;
+            min = Vector2.Min(min, p);
+            max = Vector2.Max(max, p);
+        }
+
+        inst.BoundsMin = min - center;
+        inst.BoundsMax = max - center;
+        inst.HasBounds = true;
+    }
+
+    private static bool IsOccluded(Vector2 point, in RenderContext ctx)
+    {
+        if (ctx.OccluderCount == 0) return false;
+
+        var rects = ctx.Occluders!;
+        for (var i = 0; i < ctx.OccluderCount; i++)
+        {
+            var r = rects[i];
+            if (point.X >= r.X && point.X <= r.Z && point.Y >= r.Y && point.Y <= r.W) return true;
+        }
+
+        return false;
+    }
+
+    private sealed class SpanOrder : System.Collections.Generic.IComparer<Vector2>
+    {
+        public static readonly SpanOrder Instance = new();
+        public int Compare(Vector2 a, Vector2 b) => a.X.CompareTo(b.X);
+    }
+
     /// <summary>Draws a string, one call normally or glyph by glyph when letter spacing is set.</summary>
     private static void DrawText(ImDrawListPtr dl, ImFontPtr font, float size, Vector2 origin, ReadOnlySpan<char> text, uint color, float spacing)
     {
@@ -905,7 +1058,7 @@ public sealed unsafe class FlyRenderer
             p.Vel *= 1f - Math.Min(1f, 2.6f * dt);
             p.Pos += p.Vel * dt;
 
-            if (!ctx.Visible) continue;
+            if (!ctx.Visible || IsOccluded(p.Pos, ctx)) continue;
 
             var life = 1f - p.Age / p.Life;
             var tail = p.Pos - p.Vel * 0.035f;

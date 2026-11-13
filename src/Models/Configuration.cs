@@ -36,12 +36,19 @@ public class Configuration
     public float PartyScale { get; set; } = 0.85f;
     /// <summary>Size of everyone else's numbers relative to your own.</summary>
     public float OthersScale { get; set; } = 0.75f;
+    /// <summary>
+    /// Numbers that don't involve you are dropped when they happen farther than this from you,
+    /// in yalms. 0 means no limit.
+    /// </summary>
+    public float MaxDistance { get; set; } = 50f;
 
     // Behaviour
     /// <summary>Hard cap on numbers alive at once. Oldest, least important ones make room.</summary>
     public int MaxLiveNumbers { get; set; } = 160;
     /// <summary>User-requested kill switch: hand every category back to the game.</summary>
     public bool NativeMode { get; set; }
+    /// <summary>Numbers pass under the game's windows and HUD instead of over them.</summary>
+    public bool BelowGameUi { get; set; }
 
     // Multi-hit
     /// <summary>Split configured actions' damage into several hits.</summary>

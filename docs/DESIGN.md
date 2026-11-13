@@ -202,8 +202,23 @@ flattens arcs to fades.
 
 - **Where**: `UiBuilder.Draw` → `ImGui.GetBackgroundDrawList()`; no ImGui window, no input
   capture. Hidden when `IGameGui.GameUiHidden`, `IClientState.IsGPosing`,
-  `UiBuilder.CutsceneActive`, or the "occupied in cutscene" conditions are set; while hidden,
-  instances keep ageing so nothing piles up.
+  `UiBuilder.CutsceneActive`, or the "occupied in cutscene" conditions are set, and whenever the
+  game hides its own `NamePlate` addon: scripted scenes in the middle of a duty don't always raise
+  the cutscene conditions, but they always put the HUD away. While hidden, instances keep ageing
+  so nothing piles up.
+- **Below the game UI** (opt-in): ImGui always draws over the game, so this is faked. Each frame
+  the visible addons' root rectangles are collected (skipping full-screen layers and text-only
+  overlays such as `_FlyText` and `NamePlate`, and the bars read together with the numbers:
+  `_TargetInfo*`, `_FocusTargetInfo`, `_ParameterWidget`). An instance whose extent (last frame's vertex
+  bounds, moved with it) crosses one is drawn once per free cell of the screen around those
+  rectangles, each clipped with `PushClipRect`; instances clear of every window take the single
+  draw. Sparks inside a window are skipped.
+- **Positionals**: a hook on `ActionEffectHandler.Receive` sees the server's result of your own
+  positional actions (a fixed list from the action descriptions) a little before the damage text,
+  and judges rear/flank from your position against the target's facing, using the game's four 90°
+  quadrants; True North counts as landed. The damage entry then picks that result up and spawns a
+  `PositionalHit`/`PositionalMiss` word above the target. Without the hook it is judged when the
+  text arrives. The event recorder logs the raw effect bytes alongside, to check the geometry.
 - **Pool**: one `FlyInstance[]` array of structs (capacity 512) plus a free-index stack; the
   configurable hard cap (default 160) is enforced at spawn by recycling the oldest lowest-priority
   instance (crits last). Particles: separate struct pool (1024). Nothing allocates after

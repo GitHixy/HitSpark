@@ -67,6 +67,9 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly Stopwatch clock = Stopwatch.StartNew();
 
+    /// <summary>Screen rectangles of the game's windows, refreshed each frame for "below game UI".</summary>
+    private readonly Vector4[] gameWindows = new Vector4[96];
+
     public Plugin()
     {
         try
@@ -196,6 +199,9 @@ public sealed class Plugin : IDalamudPlugin
             if (Condition[ConditionFlag.OccupiedInCutSceneEvent]) return "cutscene event";
             if (Condition[ConditionFlag.WatchingCutscene]) return "watching cutscene";
             if (Condition[ConditionFlag.WatchingCutscene78]) return "watching cutscene (78)";
+            // Scenes in the middle of a duty don't always raise the cutscene conditions, but the
+            // game always puts its HUD away for them.
+            if (GameUi.HudHiddenByGame) return "game HUD hidden";
             return null;
         }
     }
@@ -249,6 +255,12 @@ public sealed class Plugin : IDalamudPlugin
             ClipMin = viewport.Pos,
             ClipMax = viewport.Pos + viewport.Size,
         };
+
+        if (Configuration.BelowGameUi && ctx.Visible)
+        {
+            ctx.Occluders = gameWindows;
+            ctx.OccluderCount = GameUi.CollectWindows(gameWindows, viewport.Pos, viewport.Size);
+        }
 
         if (WorldRenderer.Trace != Configuration.LogEvents)
         {

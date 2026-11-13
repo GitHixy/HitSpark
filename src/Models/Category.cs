@@ -47,6 +47,10 @@ public enum Category
     Loot,
     Interrupted,
     Other,
+
+    // Added later: appended so saved presets and share codes keep their meaning.
+    PositionalHit,
+    PositionalMiss,
 }
 
 /// <summary>Groups used to lay categories out in the settings.</summary>
@@ -91,7 +95,8 @@ public static class CategoryInfo
     public static CategoryGroup Group(Category c) => c switch
     {
         Category.AutoAttack or Category.Ability or Category.DamageOverTime or Category.CriticalHit
-            or Category.DirectHit or Category.CriticalDirectHit => CategoryGroup.Outgoing,
+            or Category.DirectHit or Category.CriticalDirectHit or Category.PositionalHit
+            or Category.PositionalMiss => CategoryGroup.Outgoing,
         Category.Heal or Category.HealOverTime or Category.CriticalHeal or Category.HealReceived => CategoryGroup.Healing,
         Category.DamageTaken or Category.CriticalDamageTaken or Category.Blocked or Category.Parried => CategoryGroup.Incoming,
         Category.Miss or Category.Evade or Category.Immune => CategoryGroup.Avoidance,
@@ -139,12 +144,20 @@ public static class CategoryInfo
         Category.Crafting => "Crafting",
         Category.Loot => "Looted items",
         Category.Interrupted => "Interrupted / incapacitated",
+        Category.PositionalHit => "Positionals landed",
+        Category.PositionalMiss => "Positionals missed",
         _ => "Other",
     };
 
     /// <summary>Numbers that carry impact and deserve crit-level emphasis by default.</summary>
     public static bool IsCritical(Category c)
         => c is Category.CriticalHit or Category.CriticalDirectHit or Category.CriticalHeal or Category.CriticalDamageTaken;
+
+    /// <summary>
+    /// Text HitSpark adds on its own: the game has no native version, so "Game" mode shows nothing.
+    /// </summary>
+    public static bool IsHitSparkOnly(Category c)
+        => c is Category.PositionalHit or Category.PositionalMiss;
 
     /// <summary>Categories whose text is about the local player and float near them by default.</summary>
     public static bool IsIncoming(Category c)

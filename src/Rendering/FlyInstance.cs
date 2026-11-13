@@ -86,6 +86,11 @@ public struct FlyInstance
     public bool SparksPending;
     /// <summary>Anchor resolution has been written to the log (event recorder only).</summary>
     public bool Traced;
+
+    // Extent of the last draw relative to its centre, for drawing under the game's windows.
+    public Vector2 BoundsMin;
+    public Vector2 BoundsMax;
+    public bool HasBounds;
 }
 
 /// <summary>A spark from a crit burst. Pooled like the text instances.</summary>

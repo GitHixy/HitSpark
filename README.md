@@ -65,7 +65,15 @@ DoT ticks get their own colour and a small **DoT Tick** caption, so they never b
 
 ### Other players
 
-Numbers from actions that don't involve you — a party member hitting the boss, a stranger healing their friend — can be shown smaller, or not at all, separately for your party and for everyone else (**Settings → General → Other players**).
+Numbers from actions that don't involve you — a party member hitting the boss, a stranger healing their friend — can be shown smaller, or not at all, separately for your party and for everyone else (**Settings → General → Other players**). Anything happening more than 50 yalms away, like a FATE across the map, is dropped; you can change the distance or remove the limit.
+
+### Positionals
+
+For Monk, Dragoon, Ninja, Samurai, Reaper and Viper, a small **Rear** or **Flank** pops up above your damage when a positional lands, and **Rear missed** or **Flank missed** when it doesn't. HitSpark works this out from where you stand relative to the way the target faces when the action resolves (True North always counts). Restyle or hide them under **Positionals landed** and **Positionals missed** in the preset editor.
+
+### Below the game's UI
+
+Turn on **Below game UI** (**Settings → General → Behaviour**) and numbers pass under your hotbars, party list, chat and other game windows instead of covering them. They stay on top of the target and focus target bars and your own HP/MP, since you read those together with the numbers.
 
 ### Multi-hit *(beta)*
 
@@ -100,8 +108,8 @@ Copy a style and paste it onto one category or a whole group to build a preset q
 
 HitSpark is purely cosmetic.
 
-- **It only shows what the game already shows you.** It redraws text the game was about to display, and follows the game's own **Display flying text** and **Display pop-up text** options. It adds no combat information of any kind.
-- **It gets out of the way** in cutscenes, in GPose and when you hide the game's UI.
+- **It only shows what the game already shows you.** It redraws text the game was about to display, and follows the game's own **Display flying text** and **Display pop-up text** options. The only extra is the optional positional hint, which comes from where you're standing, something you can already see.
+- **It gets out of the way** in cutscenes (including the ones in the middle of a duty), in GPose and when you hide the game's UI.
 - **It fails safe.** If a game update breaks it, or it runs into repeated errors, HitSpark steps aside and the game's own numbers come back, with a notice explaining why. `/hitspark native` does the same by hand at any time.
 - **It stays on your machine.** No network requests, no data leaving your PC.
 

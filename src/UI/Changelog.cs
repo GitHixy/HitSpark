@@ -28,6 +28,22 @@ public static class Changelog
 {
     public static readonly Release[] Releases =
     [
+        new("0.4.0", "Closer to the game, your way",
+        [
+            new(NoteKind.Added, "Game Default preset: the game's fonts and plain colours with no extra effects, as close to the "
+                                + "native fly text as HitSpark gets. A good base to duplicate and build your own style on."),
+            new(NoteKind.Added, "Colour vision (Settings → General): adjusts the colours of every preset, yours included, for "
+                                + "protan, deutan or tritan colour blindness, so heals, crits and damage taken stay easy to tell "
+                                + "apart. A before/after preview shows the difference."),
+            new(NoteKind.Added, "Opacity per category (style editor → Text → Colour): fades the whole text at once, outline, shadow, "
+                                + "caption and icon included. The global opacity still applies on top."),
+            new(NoteKind.Added, "Letter case (style editor → Text → Content): show text as the game writes it, in UPPER CASE, "
+                                + "lower case or with Capitalised Words. It applies to the caption too."),
+            new(NoteKind.Added, "Caption position: the action name or label can sit below, above, left or right of the number."),
+            new(NoteKind.Fixed, "Buff and debuff icons were stretched sideways; they now keep their real proportions."),
+            new(NoteKind.Fixed, "Multi-hit: switching one group or action off made the other switches in the list glitch."),
+            new(NoteKind.Fixed, "Multi-hit: Shift + click on the trash icon didn't remove the group."),
+        ]),
         new("0.3.0", "Positionals, and numbers under the UI",
         [
             new(NoteKind.Added, "Positionals: on Monk, Dragoon, Ninja, Samurai, Reaper and Viper, a small \"Rear\" or \"Flank\" now "

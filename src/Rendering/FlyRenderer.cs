@@ -260,13 +260,13 @@ public sealed unsafe class FlyRenderer
         inst.Shown = r.Value;
         inst.Word = r.Word;
         inst.Unit = r.Unit;
-        inst.Name = r.Name;
+        inst.Name = TextCasing.Apply(r.Name, style.Case);
         inst.IconId = r.IconId;
         inst.DamageKind = r.DamageKind;
         inst.SizeScale = r.SizeScale > 0f ? r.SizeScale : 1f;
         inst.ColorOverride = (r.Color & 0xFF) == 0
             ? default
-            : new Vector4((r.Color >> 24) & 0xFF, (r.Color >> 16) & 0xFF, (r.Color >> 8) & 0xFF, r.Color & 0xFF) / 255f;
+            : ColorAssist.Apply(new Vector4((r.Color >> 24) & 0xFF, (r.Color >> 16) & 0xFF, (r.Color >> 8) & 0xFF, r.Color & 0xFF) / 255f);
         inst.WordFallback = NeedsFallback(style.Font, r.Word) || NeedsFallback(style.Font, r.Unit);
         inst.NameFallback = NeedsFallback(style.Font, r.Name);
 
@@ -382,6 +382,7 @@ public sealed unsafe class FlyRenderer
             n = Append(buf, n, s.Suffix);
         }
 
+        TextCasing.Apply(buf[..n], s.Case);
         inst.TextLength = n;
     }
 
@@ -509,7 +510,7 @@ public sealed unsafe class FlyRenderer
             scale *= 1f + (s.EndScale - 1f) * u;
         }
 
-        alpha *= ctx.Opacity;
+        alpha *= ctx.Opacity * s.Opacity;
         if (alpha <= 0.003f || scale <= 0.01f) return true;
 
         if (s.Shake && !ctx.ReducedMotion && sinceHit < s.ShakeTime)
@@ -740,11 +741,30 @@ public sealed unsafe class FlyRenderer
             fill = inst.ColorOverride;
 
         // Icon beside the number, sized to the text.
+        // Status icons are taller than wide (24x32), so keep the texture's aspect ratio.
         var iconSize = inst.IconId != 0 && s.Icon != IconMode.None ? size * s.IconScale : 0f;
+        var iconWrap = iconSize > 0f
+            ? Plugin.TextureProvider.GetFromGameIcon(new GameIconLookup(inst.IconId)).GetWrapOrEmpty()
+            : null;
+        var iconWidth = iconWrap is { Width: > 0, Height: > 0 }
+            ? iconSize * iconWrap.Width / iconWrap.Height
+            : iconSize;
         var gap = iconSize > 0f ? size * 0.12f : 0f;
-        var total = width + iconSize + gap;
-        var left = center.X - total * 0.5f;
-        var textX = s.Icon == IconMode.Left ? left + iconSize + gap : left;
+
+        // Caption line: the style's fixed label ("DoT Tick") wins over the action name.
+        // Beside the number it joins the row and the whole row stays centred.
+        var caption = s.Label.Length > 0 ? s.Label : s.ShowName ? inst.Name : null;
+        var hasCaption = !string.IsNullOrEmpty(caption);
+        var nameFont = hasCaption ? Fonts.Get((s.Label.Length > 0 ? s.LabelFallback : inst.NameFallback) ? FontId.Interface : s.Font) : default;
+        var nameSize = size * s.NameScale;
+        var nameWidth = hasCaption ? Measure(nameFont, nameSize, caption, 0f) : 0f;
+        var beside = hasCaption && s.CaptionPosition is CaptionPosition.Left or CaptionPosition.Right;
+        var captionSpan = beside ? nameWidth + size * 0.2f : 0f;
+
+        var total = width + iconWidth + gap + captionSpan;
+        var rowLeft = center.X - total * 0.5f;
+        var left = s.CaptionPosition == CaptionPosition.Left ? rowLeft + captionSpan : rowLeft;
+        var textX = s.Icon == IconMode.Left ? left + iconWidth + gap : left;
         var origin = new Vector2(textX, center.Y - size * 0.5f);
 
         var vtxStart = dl.VtxBuffer.Size;
@@ -787,23 +807,22 @@ public sealed unsafe class FlyRenderer
         if (flash > 0f)
             DrawText(dl, font, size, origin, text, Pack(Vector4.One, alpha * flash * 0.9f), s.LetterSpacing * scale);
 
-        if (iconSize > 0f)
+        if (iconWrap is not null)
         {
-            var wrap = Plugin.TextureProvider.GetFromGameIcon(new GameIconLookup(inst.IconId)).GetWrapOrEmpty();
             var iconX = s.Icon == IconMode.Left ? left : left + width + gap;
             var min = new Vector2(iconX, center.Y - iconSize * 0.5f);
-            dl.AddImage(wrap.Handle, min, min + new Vector2(iconSize, iconSize), Vector2.Zero, Vector2.One, Pack(Vector4.One, alpha));
+            dl.AddImage(iconWrap.Handle, min, min + new Vector2(iconWidth, iconSize), Vector2.Zero, Vector2.One, Pack(Vector4.One, alpha));
         }
 
-        // Caption line: the style's fixed label ("DoT Tick") wins over the action name.
-        var caption = s.Label.Length > 0 ? s.Label : s.ShowName ? inst.Name : null;
-        if (!string.IsNullOrEmpty(caption))
+        if (hasCaption)
         {
-            var fallback = s.Label.Length > 0 ? s.LabelFallback : inst.NameFallback;
-            var nameFont = Fonts.Get(fallback ? FontId.Interface : s.Font);
-            var nameSize = size * s.NameScale;
-            var nameWidth = Measure(nameFont, nameSize, caption, 0f);
-            var nameOrigin = new Vector2(center.X - nameWidth * 0.5f, center.Y + size * 0.42f);
+            var nameOrigin = s.CaptionPosition switch
+            {
+                CaptionPosition.Above => new Vector2(center.X - nameWidth * 0.5f, center.Y - size * 0.4f - nameSize * 0.9f),
+                CaptionPosition.Left => new Vector2(rowLeft, center.Y - nameSize * 0.5f),
+                CaptionPosition.Right => new Vector2(rowLeft + total - nameWidth, center.Y - nameSize * 0.5f),
+                _ => new Vector2(center.X - nameWidth * 0.5f, center.Y + size * 0.42f),
+            };
             var nameAlpha = alpha * 0.92f;
 
             if (s.OutlineWidth > 0f)
@@ -1034,7 +1053,7 @@ public sealed unsafe class FlyRenderer
             p.Age = 0f;
             p.Life = 0.32f + NextFloat() * 0.3f;
             p.Size = (1.6f + NextFloat() * 1.6f) * scale;
-            p.Color = s.SparkColor;
+            p.Color = MulAlpha(s.SparkColor, s.Opacity);
             remaining--;
         }
     }

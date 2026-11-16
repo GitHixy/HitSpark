@@ -34,12 +34,13 @@ HitSpark takes over the text the game would draw and draws it itself. Each kind 
 
 Numbers sit above whoever they happened to: the enemy you hit, the party member you healed, or you. What happens to you can instead scroll up a column beside your character, the way classic scrolling combat text does.
 
-### Eight built-in presets
+### Nine built-in presets
 
 Each preset is a complete look — fonts, colours, paths, timing and impact for every category. They're inspired by how different genres handle combat text, with HitSpark's own names, fonts and colours.
 
 | Preset | The idea |
 | --- | --- |
+| **Game Default** | As close to the game's own fly text as it gets: its fonts, plain colours, no extra effects. A clean base for your own style. |
 | **Classic+** | The game's own look, refined: its serif numerals with a cleaner outline and a gentle lift. |
 | **Heroic** | Classic scrolling combat text: yellow numbers arc off your targets, crits slam in huge, and what hits you scrolls up a column. *(default)* |
 | **Tally** | Compact and informative: multi-hits and ticks roll up into one number, tinted by damage type, with the action icon. |

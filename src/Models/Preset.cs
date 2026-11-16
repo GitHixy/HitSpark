@@ -87,6 +87,26 @@ public enum IconMode
     Right,
 }
 
+public enum TextCase
+{
+    /// <summary>As the game writes it.</summary>
+    AsIs,
+    /// <summary>ALL CAPITALS.</summary>
+    Upper,
+    /// <summary>all lower case.</summary>
+    Lower,
+    /// <summary>Every Word Capitalised.</summary>
+    Capitalized,
+}
+
+public enum CaptionPosition
+{
+    Below,
+    Above,
+    Left,
+    Right,
+}
+
 public enum TintMode
 {
     /// <summary>Always the style's own colour.</summary>
@@ -110,6 +130,12 @@ public sealed class TextStyle
     public Vector4 Color { get; set; } = new(1f, 1f, 1f, 1f);
     public TintMode Tint { get; set; } = TintMode.None;
 
+    /// <summary>Fades the whole text at once: fill, outline, shadow, caption, icon and sparks.</summary>
+    public float Opacity { get; set; } = 1f;
+
+    /// <summary>Letter case of the text and its caption.</summary>
+    public TextCase Case { get; set; } = TextCase.AsIs;
+
     /// <summary>Blend toward <see cref="GradientColor"/> from top to bottom of the glyphs.</summary>
     public bool Gradient { get; set; }
     public Vector4 GradientColor { get; set; } = new(0.8f, 0.8f, 0.8f, 1f);
@@ -129,6 +155,8 @@ public sealed class TextStyle
     /// <summary>Show the action or status name next to the number, when the game provides one.</summary>
     public bool ShowName { get; set; }
     public float NameScale { get; set; } = 0.5f;
+    /// <summary>Where the caption (label or name) sits relative to the number.</summary>
+    public CaptionPosition CaptionPosition { get; set; } = CaptionPosition.Below;
     public IconMode Icon { get; set; } = IconMode.None;
     public float IconScale { get; set; } = 0.85f;
 

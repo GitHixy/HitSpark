@@ -151,7 +151,8 @@ public partial class ConfigWindow
 
         ImGui.SameLine(0, 10);
         ImGui.AlignTextToFramePadding();
-        var open = ImGui.TreeNodeEx($"{group.Name}###group", ImGuiTreeNodeFlags.SpanAvailWidth);
+        // AllowOverlap: the row spans the full width, so without it the tree node swallows the trash button's clicks.
+        var open = ImGui.TreeNodeEx($"{group.Name}###group", ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.AllowItemOverlap);
 
         ImGui.SameLine(ImGui.GetContentRegionMax().X - 120f);
         ImGui.AlignTextToFramePadding();

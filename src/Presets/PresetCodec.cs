@@ -121,6 +121,8 @@ public static class PresetCodec
             style.Text.Suffix = Clip(style.Text.Suffix ?? string.Empty, 12);
             style.Text.Label = Clip(style.Text.Label ?? string.Empty, 20);
             if (!Enum.IsDefined(style.Text.Font)) style.Text.Font = FontId.BebasNeue;
+            if (!Enum.IsDefined(style.Text.Case)) style.Text.Case = TextCase.AsIs;
+            if (!Enum.IsDefined(style.Text.CaptionPosition)) style.Text.CaptionPosition = CaptionPosition.Below;
         }
 
         // Unknown category keys from a newer schema are dropped.

@@ -649,6 +649,9 @@ public partial class ConfigWindow : Window
             ColorRow("Unique", preset.Palette.Unique, v => preset.Palette.Unique = v);
         }
 
+        FloatRow("Opacity", t.Opacity * 100f, v => t.Opacity = v / 100f, 5f, 100f, "%.0f%%");
+        ImGui.SameLine(0, 8);
+        Theme.HelpMarker("Fades this category as a whole: colour, outline, shadow, caption and icon together. The global opacity in Display still applies on top.");
         ToggleRow("Gradient", t.Gradient, v => t.Gradient = v, "Blends from the colour at the top to this one at the bottom.");
         if (t.Gradient)
             ColorRow("Bottom colour", t.GradientColor, v => t.GradientColor = v);
@@ -680,6 +683,13 @@ public partial class ConfigWindow : Window
             }
         }
 
+        EnumRow("Letter case", t.Case, v => t.Case = v, v => v switch
+        {
+            TextCase.Upper => "UPPER CASE",
+            TextCase.Lower => "lower case",
+            TextCase.Capitalized => "Capitalised Words",
+            _ => "As the game writes it",
+        });
         TextRow("Prefix", t.Prefix, v => t.Prefix = v, 8);
         TextRow("Suffix", t.Suffix, v => t.Suffix = v, 12);
         TextRow("Label", t.Label, v => t.Label = v, 20);
@@ -687,7 +697,16 @@ public partial class ConfigWindow : Window
         Theme.HelpMarker("A fixed caption under the number, like \"DoT Tick\". Leave empty for none. When set, it replaces the action name.");
         ToggleRow("Show action / status name", t.ShowName, v => t.ShowName = v);
         if (t.ShowName || t.Label.Length > 0)
+        {
             FloatRow("Caption size", t.NameScale, v => t.NameScale = v, 0.3f, 1.2f, "%.2fx");
+            EnumRow("Caption position", t.CaptionPosition, v => t.CaptionPosition = v, v => v switch
+            {
+                CaptionPosition.Above => "Above the number",
+                CaptionPosition.Left => "Left of the number",
+                CaptionPosition.Right => "Right of the number",
+                _ => "Below the number",
+            });
+        }
         EnumRow("Icon", t.Icon, v => t.Icon = v, v => v switch { IconMode.Left => "Left of the text", IconMode.Right => "Right of the text", _ => "None" });
         if (t.Icon != IconMode.None)
             FloatRow("Icon size", t.IconScale, v => t.IconScale = v, 0.4f, 2f, "%.2fx");
@@ -915,6 +934,80 @@ public partial class ConfigWindow : Window
     // General
     // ------------------------------------------------------------------
 
+    /// <summary>The colours that most need to stay apart, as a colour-blind player would see them.</summary>
+    private static readonly (Category Category, string Name)[] ColorVisionSamples =
+    [
+        (Category.Ability, "Hit"),
+        (Category.CriticalHit, "Crit"),
+        (Category.Heal, "Heal"),
+        (Category.DamageTaken, "Taken"),
+        (Category.StatusGained, "Buff"),
+        (Category.DebuffGained, "Debuff"),
+    ];
+
+    private void DrawColorVision()
+    {
+        var mode = (int)Config.ColorVision;
+        Row("Colour vision");
+        if (Theme.SegmentedControl("##colorVision", ref mode, "Normal", "Protan", "Deutan", "Tritan"))
+        {
+            Config.ColorVision = (ColorVision)mode;
+            ApplyColorVision();
+            ConfigService.Save();
+        }
+
+        ImGui.SameLine(0, 8);
+        Theme.HelpMarker("Adjusts the colours of every preset, yours included, so the ones that matter stay easy to tell apart.\n" +
+                         "Protan: reds look dark or brownish.\nDeutan: reds and greens look alike (the most common).\n" +
+                         "Tritan: blues and yellows look alike.");
+
+        if (Config.ColorVision == ColorVision.Normal) return;
+
+        var strength = Config.ColorAssistStrength * 100f;
+        Row("Correction");
+        if (Theme.Slider("##colorAssist", ref strength, 0f, 100f, "%.0f%%", ControlWidth))
+        {
+            Config.ColorAssistStrength = strength / 100f;
+            ApplyColorVision();
+            saveAt = plugin.Now + 1.0;
+        }
+
+        // Side by side: the active preset as seen with this deficiency, before and after the correction.
+        var preset = Presets.Active;
+        var vision = Config.ColorVision;
+        var dl = ImGui.GetWindowDrawList();
+        foreach (var (label, corrected) in new[] { ("Without", false), ("With", true) })
+        {
+            Row(label);
+            var p = ImGui.GetCursorScreenPos();
+            const float w = 52f, h = 22f, gapX = 6f;
+            for (var i = 0; i < ColorVisionSamples.Length; i++)
+            {
+                var (category, name) = ColorVisionSamples[i];
+                var color = preset.Get(category).Text.Color;
+                if (corrected) color = ColorAssist.Apply(color, vision, Config.ColorAssistStrength);
+                var seen = ColorAssist.Simulate(color, vision) with { W = 1f };
+
+                var min = new Vector2(p.X + i * (w + gapX), p.Y);
+                var max = min + new Vector2(w, h);
+                dl.AddRectFilled(min, max, Theme.U32(new Vector4(0.06f, 0.06f, 0.07f, 1f)), 4f);
+                var ts = ImGui.CalcTextSize(name);
+                dl.AddText(new Vector2(min.X + (w - ts.X) * 0.5f, min.Y + (h - ts.Y) * 0.5f), ImGui.ColorConvertFloat4ToU32(seen), name);
+            }
+
+            ImGui.Dummy(new Vector2(ColorVisionSamples.Length * (w + gapX), h));
+        }
+
+        ImGui.TextColored(Theme.TextFaint, "Both rows show how the active preset looks with this colour vision.");
+    }
+
+    private void ApplyColorVision()
+    {
+        ColorAssist.Configure(Config.ColorVision, Config.ColorAssistStrength);
+        Presets.MarkDirty();
+        selectedCompiled = null;
+    }
+
     private void DrawGeneral()
     {
         Theme.SectionHeader("Look", FontAwesomeIcon.Eye);
@@ -945,6 +1038,8 @@ public partial class ConfigWindow : Window
 
         ImGui.SameLine(0, 8);
         Theme.HelpMarker("Turns off shake, sparks and trails, and swaps arcs for a short rise. Follow Dalamud uses the setting in Dalamud's own options.");
+
+        DrawColorVision();
 
         ImGui.Dummy(new Vector2(0, 8));
         Theme.SectionHeader("Other players", FontAwesomeIcon.Users);

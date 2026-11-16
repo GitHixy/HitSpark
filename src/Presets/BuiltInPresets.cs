@@ -19,6 +19,7 @@ public static class BuiltInPresets
 
     private static List<Preset> Build() =>
     [
+        GameDefault(),
         ClassicPlus(),
         Heroic(),
         Tally(),
@@ -240,6 +241,114 @@ public static class BuiltInPresets
     }
 
     private static Vector4 Rgb(int r, int g, int b, float a = 1f) => new(r / 255f, g / 255f, b / 255f, a);
+
+    // ------------------------------------------------------------------
+    // Game Default - as close to the native fly text as possible, a base to customise
+    // ------------------------------------------------------------------
+
+    private static Preset GameDefault()
+    {
+        var white = Rgb(0xFF, 0xFF, 0xFF);
+        var tone = new Tone(
+            Auto: white, Hit: white, Dot: white, Direct: white, Crit: white, CritDirect: white,
+            Heal: Rgb(0x7C, 0xE8, 0x6E), Incoming: Rgb(0xFF, 0x5C, 0x4E),
+            Buff: white, Debuff: Rgb(0xFF, 0x8A, 0x80), Faded: Rgb(0xC8, 0xC8, 0xC8),
+            Word: white, Misc: white);
+
+        void Hit(CategoryStyle s)
+        {
+            s.Text.Font = FontId.GameJupiter;
+            s.Text.Size = 32f;
+            s.Text.OutlineWidth = 2f;
+            s.Text.OutlineColor = new Vector4(0f, 0f, 0f, 0.9f);
+            s.Text.Shadow = false;
+            s.Motion.Anchor = AnchorMode.Actor;
+            s.Motion.OffsetY = -10f;
+            s.Motion.Duration = 1.4f;
+            s.Motion.Trajectory = Trajectory.Rise;
+            s.Motion.PathEasing = Easing.QuadOut;
+            s.Motion.Distance = 50f;
+            s.Motion.Spread = 20f;
+            s.Motion.PopScale = 1.12f;
+            s.Motion.PopTime = 0.1f;
+            s.Motion.PopEasing = Easing.QuadOut;
+            s.Motion.FadeOutTime = 0.3f;
+            s.Motion.EndScale = 1f;
+        }
+
+        var preset = Assemble("builtin.game", "Game Default",
+            "As close to the game's own fly text as HitSpark gets: its fonts, plain colours and no extra effects. A clean base for a style of your own.",
+            new Palette(),
+            new Kit
+            {
+                Tone = tone,
+                CritSuffix = "!",
+                CritDirectSuffix = "!!",
+                Hit = s =>
+                {
+                    Hit(s);
+                    s.Text.ShowName = true;
+                    s.Text.NameScale = 0.55f;
+                },
+                Crit = s =>
+                {
+                    Hit(s);
+                    s.Text.Size = 40f;
+                    s.Text.ShowName = true;
+                    s.Text.NameScale = 0.45f;
+                    s.Motion.PopScale = 1.4f;
+                    s.Motion.PopTime = 0.16f;
+                },
+                Heal = s =>
+                {
+                    Hit(s);
+                    s.Text.ShowName = true;
+                    s.Text.NameScale = 0.55f;
+                },
+                Incoming = s =>
+                {
+                    Hit(s);
+                    s.Text.Size = 30f;
+                    s.Text.ShowName = true;
+                    s.Text.NameScale = 0.55f;
+                    s.Motion.Anchor = AnchorMode.SelfLeft;
+                    s.Motion.Distance = 60f;
+                    s.Motion.Spread = 8f;
+                },
+                Word = s =>
+                {
+                    Hit(s);
+                    s.Text.Font = FontId.GameTrumpGothic;
+                    s.Text.Size = 30f;
+                },
+                Status = s =>
+                {
+                    Hit(s);
+                    s.Text.Font = FontId.Interface;
+                    s.Text.Size = 20f;
+                    s.Text.Icon = IconMode.Left;
+                    s.Text.IconScale = 1.25f;
+                    s.Motion.OffsetY = -40f;
+                    s.Motion.Duration = 1.6f;
+                    s.Motion.PopScale = 1f;
+                },
+                Misc = s =>
+                {
+                    Hit(s);
+                    s.Text.Font = FontId.GameTrumpGothic;
+                    s.Text.Size = 26f;
+                    s.Motion.Anchor = AnchorMode.SelfRight;
+                    s.Motion.Duration = 1.8f;
+                    s.Motion.PopScale = 1f;
+                },
+            });
+
+        // The game labels neither auto-attacks nor ticks; Assemble gives ticks a "DoT Tick" caption.
+        preset.Styles[Category.AutoAttack].Text.ShowName = false;
+        preset.Styles[Category.DamageOverTime].Text.Label = string.Empty;
+        preset.Styles[Category.DamageOverTime].Text.ShowName = false;
+        return preset;
+    }
 
     // ------------------------------------------------------------------
     // Classic+ - the game's own language, refined

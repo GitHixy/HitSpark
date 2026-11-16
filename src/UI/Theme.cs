@@ -714,7 +714,8 @@ public static class Theme
         return clicked;
     }
 
-    private static readonly Dictionary<string, float> ToggleAnim = new();
+    // Keyed by the full ImGui ID (string + ID stack), so toggles drawn in a loop under PushId stay independent.
+    private static readonly Dictionary<uint, float> ToggleAnim = new();
 
     /// <summary>
     /// An animated sliding switch. Reads far better than a checkbox for on/off settings.
@@ -734,11 +735,12 @@ public static class Theme
         if (changed) value = !value;
         var hovered = ImGui.IsItemHovered();
 
-        if (!ToggleAnim.TryGetValue(id, out var t)) t = value ? 1f : 0f;
+        var animKey = ImGui.GetID(id);
+        if (!ToggleAnim.TryGetValue(animKey, out var t)) t = value ? 1f : 0f;
         var target = value ? 1f : 0f;
         t += (target - t) * Math.Clamp(ImGui.GetIO().DeltaTime * 14f, 0f, 1f);
         if (Math.Abs(target - t) < 0.002f) t = target;
-        ToggleAnim[id] = t;
+        ToggleAnim[animKey] = t;
 
         var track = Mix(Surface, Alpha(Gold, 0.55f), t);
         var max = new Vector2(p.X + w, p.Y + h);

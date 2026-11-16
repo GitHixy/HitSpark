@@ -11,6 +11,18 @@ public enum ReducedMotionMode
     Off,
 }
 
+public enum ColorVision
+{
+    /// <summary>Colours as the preset defines them.</summary>
+    Normal,
+    /// <summary>Red-weak or red-blind.</summary>
+    Protanopia,
+    /// <summary>Green-weak or green-blind, the most common.</summary>
+    Deuteranopia,
+    /// <summary>Blue-yellow.</summary>
+    Tritanopia,
+}
+
 /// <summary>
 /// Configuration settings for the HitSpark plugin
 /// </summary>
@@ -28,6 +40,11 @@ public class Configuration
     public float GlobalScale { get; set; } = 1f;
     public float GlobalOpacity { get; set; } = 1f;
     public ReducedMotionMode ReducedMotion { get; set; } = ReducedMotionMode.Auto;
+
+    /// <summary>Colour vision deficiency to correct every preset's colours for.</summary>
+    public ColorVision ColorVision { get; set; } = ColorVision.Normal;
+    /// <summary>How strongly colours are corrected, 0 to 1.</summary>
+    public float ColorAssistStrength { get; set; } = 1f;
 
     // Other players' numbers (pop-up text the game shows for party members and others)
     public bool ShowParty { get; set; } = true;

@@ -32,6 +32,7 @@ public sealed class PresetService
             filled |= BuiltInPresets.FillMissing(preset);
         if (filled) configService.Save();
 
+        ColorAssist.Configure(Config.ColorVision, Config.ColorAssistStrength);
         Resolve();
         Recompile();
     }

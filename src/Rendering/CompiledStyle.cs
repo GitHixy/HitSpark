@@ -22,6 +22,9 @@ public sealed class CompiledStyle
     public float Size;
     public Vector4 Color;
     public TintMode Tint;
+    public float Opacity;
+    public TextCase Case;
+    public CaptionPosition CaptionPosition;
     public bool Gradient;
     public Vector4 GradientColor;
     public float OutlineWidth;
@@ -98,18 +101,21 @@ public sealed class CompiledStyle
 
             Font = t.Font,
             Size = Math.Clamp(t.Size, 6f, 160f),
-            Color = t.Color,
+            Color = ColorAssist.Apply(t.Color),
             Tint = t.Tint,
+            Opacity = Math.Clamp(t.Opacity, 0f, 1f),
+            Case = t.Case,
+            CaptionPosition = t.CaptionPosition,
             Gradient = t.Gradient,
-            GradientColor = t.GradientColor,
+            GradientColor = ColorAssist.Apply(t.GradientColor),
             OutlineWidth = Math.Clamp(t.OutlineWidth, 0f, 6f),
-            OutlineColor = ImGui.ColorConvertFloat4ToU32(t.OutlineColor),
+            OutlineColor = ImGui.ColorConvertFloat4ToU32(ColorAssist.Apply(t.OutlineColor)),
             Shadow = t.Shadow,
             ShadowOffset = t.ShadowOffset,
-            ShadowColor = ImGui.ColorConvertFloat4ToU32(t.ShadowColor),
+            ShadowColor = ImGui.ColorConvertFloat4ToU32(ColorAssist.Apply(t.ShadowColor)),
             LetterSpacing = Math.Clamp(t.LetterSpacing, -10f, 30f),
             ShowName = t.ShowName,
-            Label = t.Label ?? string.Empty,
+            Label = TextCasing.Apply(t.Label, t.Case) ?? string.Empty,
             LabelFallback = (t.Label ?? string.Empty).Any(c => c > 0x17F),
             NameScale = Math.Clamp(t.NameScale, 0.2f, 1.5f),
             Icon = t.Icon,
@@ -148,7 +154,7 @@ public sealed class CompiledStyle
             Sparks = e.Sparks,
             SparkCount = Math.Clamp(e.SparkCount, 1, 40),
             SparkSpeed = Math.Clamp(e.SparkSpeed, 20f, 1000f),
-            SparkColor = ImGui.ColorConvertFloat4ToU32(e.SparkColor),
+            SparkColor = ImGui.ColorConvertFloat4ToU32(ColorAssist.Apply(e.SparkColor)),
             Ghost = e.Ghost,
             GhostCount = Math.Clamp(e.GhostCount, 1, FlyInstance.MaxGhosts),
 
@@ -175,9 +181,9 @@ public sealed class CompiledPreset
         var compiled = new CompiledPreset
         {
             Name = preset.Name,
-            Physical = preset.Palette.Physical,
-            Magical = preset.Palette.Magical,
-            Unique = preset.Palette.Unique,
+            Physical = ColorAssist.Apply(preset.Palette.Physical),
+            Magical = ColorAssist.Apply(preset.Palette.Magical),
+            Unique = ColorAssist.Apply(preset.Palette.Unique),
         };
 
         foreach (var category in CategoryInfo.All)

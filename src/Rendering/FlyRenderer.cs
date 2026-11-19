@@ -268,7 +268,7 @@ public sealed unsafe class FlyRenderer
             ? default
             : ColorAssist.Apply(new Vector4((r.Color >> 24) & 0xFF, (r.Color >> 16) & 0xFF, (r.Color >> 8) & 0xFF, r.Color & 0xFF) / 255f);
         inst.WordFallback = NeedsFallback(style.Font, r.Word) || NeedsFallback(style.Font, r.Unit);
-        inst.NameFallback = NeedsFallback(style.Font, r.Name);
+        inst.NameFallback = NeedsFallback(style.CaptionFont, r.Name);
 
         // Motion randomness
         inst.Rand = NextFloat();
@@ -755,7 +755,7 @@ public sealed unsafe class FlyRenderer
         // Beside the number it joins the row and the whole row stays centred.
         var caption = s.Label.Length > 0 ? s.Label : s.ShowName ? inst.Name : null;
         var hasCaption = !string.IsNullOrEmpty(caption);
-        var nameFont = hasCaption ? Fonts.Get((s.Label.Length > 0 ? s.LabelFallback : inst.NameFallback) ? FontId.Interface : s.Font) : default;
+        var nameFont = hasCaption ? Fonts.Get((s.Label.Length > 0 ? s.LabelFallback : inst.NameFallback) ? FontId.Interface : s.CaptionFont) : default;
         var nameSize = size * s.NameScale;
         var nameWidth = hasCaption ? Measure(nameFont, nameSize, caption, 0f) : 0f;
         var beside = hasCaption && s.CaptionPosition is CaptionPosition.Left or CaptionPosition.Right;

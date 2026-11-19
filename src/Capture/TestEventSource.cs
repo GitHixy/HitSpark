@@ -39,15 +39,19 @@ public sealed class TestEventSource
         new(Category.Evade, 0.4f),
         new(Category.CriticalDamageTaken, 0.5f),
         new(Category.AutoAttack, 0.3f),
+        new(Category.AutoAttackCriticalHit, 0.4f),
         new(Category.Resource, 0.35f),
         new(Category.StatusLost, 0.45f),
+        new(Category.AutoAttackDirectHit, 0.35f),
         new(Category.Ability, 0f),
         new(Category.PositionalMiss, 0.4f),
         new(Category.Experience, 0.6f),
+        new(Category.AutoAttackCriticalDirectHit, 0.45f),
     ];
 
     // Real ids so names and icons come from the game data.
     private static readonly uint[] DamageActions = [9, 141, 142, 144, 24, 53];
+    private static readonly uint[] AutoAttackActions = [7, 8];
     private static readonly uint[] HealActions = [120, 124, 135, 190];
     private static readonly uint[] BuffStatuses = [158, 1204, 76, 150];
     private static readonly uint[] DebuffStatuses = [143, 179, 144, 3];
@@ -116,9 +120,17 @@ public sealed class TestEventSource
 
     private uint burstAction;
 
-    private uint PickAction(Category category) => CategoryInfo.Group(category) == CategoryGroup.Healing
-        ? HealActions[random.Next(HealActions.Length)]
-        : DamageActions[random.Next(DamageActions.Length)];
+    private uint PickAction(Category category)
+    {
+        var pool = IsAutoAttack(category) ? AutoAttackActions
+            : CategoryInfo.Group(category) == CategoryGroup.Healing ? HealActions
+            : DamageActions;
+        return pool[random.Next(pool.Length)];
+    }
+
+    private static bool IsAutoAttack(Category category)
+        => category is Category.AutoAttack or Category.AutoAttackCriticalHit or Category.AutoAttackDirectHit
+            or Category.AutoAttackCriticalDirectHit;
 
     private SpawnRequest Make(Category category, uint actionId)
     {
@@ -132,7 +144,7 @@ public sealed class TestEventSource
 
         // Some of the hits and heals on the target come from the party or from strangers,
         // so the "other players" size and visibility settings can be judged in the preview.
-        if (category is Category.Ability or Category.AutoAttack or Category.CriticalHit or Category.DirectHit or Category.Heal)
+        if (category is Category.Ability or Category.CriticalHit or Category.DirectHit or Category.Heal || IsAutoAttack(category))
         {
             var roll = random.NextDouble();
             r.Involvement = roll < 0.3 ? Involvement.Party : roll < 0.42 ? Involvement.Others : Involvement.You;
@@ -219,6 +231,9 @@ public sealed class TestEventSource
             Category.DirectHit => (14_000, 26_000),
             Category.CriticalHit => (22_000, 42_000),
             Category.CriticalDirectHit => (38_000, 68_000),
+            Category.AutoAttackDirectHit => (3_600, 7_800),
+            Category.AutoAttackCriticalHit => (4_800, 10_500),
+            Category.AutoAttackCriticalDirectHit => (6_200, 13_000),
             Category.Heal or Category.HealReceived => (6_000, 15_000),
             Category.HealOverTime => (1_500, 3_800),
             Category.CriticalHeal => (14_000, 24_000),

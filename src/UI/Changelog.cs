@@ -28,6 +28,15 @@ public static class Changelog
 {
     public static readonly Release[] Releases =
     [
+        new("0.5.0", "Auto-attacks, apart",
+        [
+            new(NoteKind.Added, "Auto-attack critical hits, direct hits and critical direct hits now have their own styles, so they "
+                                + "can look different from the crits and direct hits of your abilities. They start out looking "
+                                + "exactly like before (your presets included) until you change them. Pet attacks count as auto-attacks."),
+            new(NoteKind.Added, "Caption font: the label or action name can use a different font from the number (Text tab, under "
+                                + "the caption settings). It stays the same as the number unless you pick one."),
+            new(NoteKind.Changed, "Game Default now writes action names in the interface font under its serif numbers, like the game does."),
+        ]),
         new("0.4.0", "Closer to the game, your way",
         [
             new(NoteKind.Added, "Game Default preset: the game's fonts and plain colours with no extra effects, as close to the "

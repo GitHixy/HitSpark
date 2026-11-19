@@ -155,6 +155,8 @@ public sealed class TextStyle
     /// <summary>Show the action or status name next to the number, when the game provides one.</summary>
     public bool ShowName { get; set; }
     public float NameScale { get; set; } = 0.5f;
+    /// <summary>Font of the caption (label or name). Null uses the number's <see cref="Font"/>.</summary>
+    public FontId? CaptionFont { get; set; }
     /// <summary>Where the caption (label or name) sits relative to the number.</summary>
     public CaptionPosition CaptionPosition { get; set; } = CaptionPosition.Below;
     public IconMode Icon { get; set; } = IconMode.None;

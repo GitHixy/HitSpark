@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace HitSpark.Models;
 
@@ -51,6 +52,9 @@ public enum Category
     // Added later: appended so saved presets and share codes keep their meaning.
     PositionalHit,
     PositionalMiss,
+    AutoAttackCriticalHit,
+    AutoAttackDirectHit,
+    AutoAttackCriticalDirectHit,
 }
 
 /// <summary>Groups used to lay categories out in the settings.</summary>
@@ -92,11 +96,44 @@ public static class CategoryInfo
 
     public static int Count => All.Length;
 
+    /// <summary>
+    /// Every category in the order the settings list them. The enum only grows at the end, so
+    /// related categories added later are slotted next to their siblings here.
+    /// </summary>
+    public static readonly Category[] Ordered =
+    [
+        Category.AutoAttack,
+        Category.Ability,
+        Category.DamageOverTime,
+        Category.CriticalHit,
+        Category.DirectHit,
+        Category.CriticalDirectHit,
+        Category.AutoAttackCriticalHit,
+        Category.AutoAttackDirectHit,
+        Category.AutoAttackCriticalDirectHit,
+        Category.PositionalHit,
+        Category.PositionalMiss,
+        .. All.Where(c => Group(c) != CategoryGroup.Outgoing),
+    ];
+
+    /// <summary>
+    /// The category a newer one was split out of. Presets saved before the split start with a
+    /// copy of that style, so nothing changes until the player edits it.
+    /// </summary>
+    public static Category? SplitFrom(Category c) => c switch
+    {
+        Category.AutoAttackCriticalHit => Category.CriticalHit,
+        Category.AutoAttackDirectHit => Category.DirectHit,
+        Category.AutoAttackCriticalDirectHit => Category.CriticalDirectHit,
+        _ => null,
+    };
+
     public static CategoryGroup Group(Category c) => c switch
     {
         Category.AutoAttack or Category.Ability or Category.DamageOverTime or Category.CriticalHit
             or Category.DirectHit or Category.CriticalDirectHit or Category.PositionalHit
-            or Category.PositionalMiss => CategoryGroup.Outgoing,
+            or Category.PositionalMiss or Category.AutoAttackCriticalHit or Category.AutoAttackDirectHit
+            or Category.AutoAttackCriticalDirectHit => CategoryGroup.Outgoing,
         Category.Heal or Category.HealOverTime or Category.CriticalHeal or Category.HealReceived => CategoryGroup.Healing,
         Category.DamageTaken or Category.CriticalDamageTaken or Category.Blocked or Category.Parried => CategoryGroup.Incoming,
         Category.Miss or Category.Evade or Category.Immune => CategoryGroup.Avoidance,
@@ -123,6 +160,9 @@ public static class CategoryInfo
         Category.CriticalHit => "Critical hits",
         Category.DirectHit => "Direct hits",
         Category.CriticalDirectHit => "Critical direct hits",
+        Category.AutoAttackCriticalHit => "Auto-attack critical hits",
+        Category.AutoAttackDirectHit => "Auto-attack direct hits",
+        Category.AutoAttackCriticalDirectHit => "Auto-attack critical direct hits",
         Category.Heal => "Heals",
         Category.HealOverTime => "Heals over time",
         Category.CriticalHeal => "Critical heals",
@@ -151,7 +191,8 @@ public static class CategoryInfo
 
     /// <summary>Numbers that carry impact and deserve crit-level emphasis by default.</summary>
     public static bool IsCritical(Category c)
-        => c is Category.CriticalHit or Category.CriticalDirectHit or Category.CriticalHeal or Category.CriticalDamageTaken;
+        => c is Category.CriticalHit or Category.CriticalDirectHit or Category.CriticalHeal or Category.CriticalDamageTaken
+            or Category.AutoAttackCriticalHit or Category.AutoAttackCriticalDirectHit;
 
     /// <summary>
     /// Text HitSpark adds on its own: the game has no native version, so "Game" mode shows nothing.

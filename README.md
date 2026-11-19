@@ -25,7 +25,7 @@ HitSpark takes over the text the game would draw and draws it itself. Each kind 
 
 | Group | Categories |
 | --- | --- |
-| **Damage dealt** | Auto-attacks, abilities, damage over time, critical hits, direct hits, critical direct hits |
+| **Damage dealt** | Auto-attacks, abilities, damage over time, critical hits, direct hits, critical direct hits (separately for auto-attacks and abilities) |
 | **Healing** | Heals, heals over time, critical heals, heals received |
 | **Damage taken** | Damage taken, critical damage taken, blocked, parried |
 | **Avoidance** | Misses, evades, immune / resisted / reflected |
@@ -88,7 +88,7 @@ While HitSpark draws your damage numbers, MultiHit can't see them, so once your 
 
 Duplicate any preset and change everything, category by category, while a live preview plays inside the settings window:
 
-- **Text** — font, size, spacing, colour or damage-type tint, gradient, outline, shadow, digit grouping, 12.3K-style abbreviations, prefix, suffix, a fixed caption, the action or status name, and its icon.
+- **Text** — font, size, spacing, colour or damage-type tint, gradient, outline, shadow, digit grouping, 12.3K-style abbreviations, prefix, suffix, a fixed caption, the action or status name (in the number's font or one of its own), and its icon.
 - **Motion** — where it anchors, the path and its easing, duration, distance, spread, pop, fades, tilt and stepped motion.
 - **Impact** — punch, shake, flash, sparks and ghost trail.
 - **Behaviour** — who it shows for (you, your party, others) and whether hits merge.

@@ -43,11 +43,12 @@ public static class EventClassifier
                     return IncomingDamage(kind, option);
                 if (overTime)
                     return Category.DamageOverTime;
+                // Auto-attack crits and direct hits get categories of their own, apart from abilities.
                 return kind switch
                 {
-                    FlyTextKind.AutoAttackOrDotDh => Category.DirectHit,
-                    FlyTextKind.AutoAttackOrDotCrit => Category.CriticalHit,
-                    FlyTextKind.AutoAttackOrDotCritDh => Category.CriticalDirectHit,
+                    FlyTextKind.AutoAttackOrDotDh => Category.AutoAttackDirectHit,
+                    FlyTextKind.AutoAttackOrDotCrit => Category.AutoAttackCriticalHit,
+                    FlyTextKind.AutoAttackOrDotCritDh => Category.AutoAttackCriticalDirectHit,
                     _ => Category.AutoAttack,
                 };
 

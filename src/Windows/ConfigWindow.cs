@@ -548,7 +548,7 @@ public partial class ConfigWindow : Window
             using (new Theme.FontScale(0.82f))
                 ImGui.TextColored(Theme.GoldDim, CategoryInfo.GroupName(group).ToUpperInvariant());
 
-            foreach (var category in CategoryInfo.All.Where(c => CategoryInfo.Group(c) == group))
+            foreach (var category in CategoryInfo.Ordered.Where(c => CategoryInfo.Group(c) == group))
             {
                 var mode = preset.Get(category).Mode;
                 var dot = mode switch
@@ -577,7 +577,7 @@ public partial class ConfigWindow : Window
         ImGui.SetNextItemWidth(ControlWidth);
         using var combo = ImRaii.Combo("##previewCategory", CategoryInfo.Name(editCategory));
         if (!combo) return;
-        foreach (var category in CategoryInfo.All)
+        foreach (var category in CategoryInfo.Ordered)
         {
             if (ImGui.Selectable(CategoryInfo.Name(category), category == editCategory))
                 editCategory = category;
@@ -622,7 +622,7 @@ public partial class ConfigWindow : Window
         {
             if (Theme.GhostButton("Paste to group", new Vector2(110, 0)) && copiedStyle is not null)
             {
-                foreach (var category in CategoryInfo.All.Where(c => CategoryInfo.Group(c) == CategoryInfo.Group(editCategory)))
+                foreach (var category in CategoryInfo.Ordered.Where(c => CategoryInfo.Group(c) == CategoryInfo.Group(editCategory)))
                     preset.Styles[category] = copiedStyle.Clone();
                 changed = true;
             }
@@ -698,6 +698,7 @@ public partial class ConfigWindow : Window
         ToggleRow("Show action / status name", t.ShowName, v => t.ShowName = v);
         if (t.ShowName || t.Label.Length > 0)
         {
+            CaptionFontRow(t);
             FloatRow("Caption size", t.NameScale, v => t.NameScale = v, 0.3f, 1.2f, "%.2fx");
             EnumRow("Caption position", t.CaptionPosition, v => t.CaptionPosition = v, v => v switch
             {
@@ -904,6 +905,37 @@ public partial class ConfigWindow : Window
                 changed = true;
             }
         }
+    }
+
+    private void CaptionFontRow(TextStyle t)
+    {
+        static string Name(FontId? id) => id is { } f ? FontService.DisplayName(f) : "Same as the number";
+
+        Row("Caption font");
+        ImGui.SetNextItemWidth(ControlWidth);
+        using (var combo = ImRaii.Combo("##captionFont", Name(t.CaptionFont)))
+        {
+            if (combo)
+            {
+                if (ImGui.Selectable(Name(null), t.CaptionFont is null))
+                {
+                    t.CaptionFont = null;
+                    changed = true;
+                }
+
+                foreach (var option in Enum.GetValues<FontId>())
+                {
+                    if (ImGui.Selectable(Name(option), t.CaptionFont == option))
+                    {
+                        t.CaptionFont = option;
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        ImGui.SameLine(0, 8);
+        Theme.HelpMarker("The font of the label or action name. The game itself uses the interface font for names under its serif numbers.");
     }
 
     private void FlagRow(string label, CategoryStyle style, Involvement flag)

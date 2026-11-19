@@ -201,6 +201,13 @@ public static class BuiltInPresets
             [Category.PositionalMiss] = From(k.Word, s => Positional(s, t.Incoming)),
         };
 
+        // Auto-attack crits and direct hits look like the ability ones until a player restyles them.
+        foreach (var category in CategoryInfo.All)
+        {
+            if (CategoryInfo.SplitFrom(category) is { } parent)
+                styles[category] = styles[parent].Clone();
+        }
+
         return new Preset
         {
             Id = id,
@@ -223,8 +230,10 @@ public static class BuiltInPresets
     }
 
     /// <summary>
-    /// Gives a preset every category it lacks, copied from the built-in it was based on (or the
-    /// default). Presets saved before a category existed would otherwise get a bare style.
+    /// Gives a preset every category it lacks. A category split out of an older one copies the
+    /// preset's own style for it, so the split changes nothing on screen; any other copies the
+    /// built-in the preset was based on (or the default). Presets saved before a category existed
+    /// would otherwise get a bare style.
     /// </summary>
     public static bool FillMissing(Preset preset)
     {
@@ -232,8 +241,15 @@ public static class BuiltInPresets
         var changed = false;
         foreach (var category in CategoryInfo.All)
         {
-            if (preset.Styles.ContainsKey(category) || !source.Styles.TryGetValue(category, out var style)) continue;
-            preset.Styles[category] = style.Clone();
+            if (preset.Styles.ContainsKey(category)) continue;
+
+            if (CategoryInfo.SplitFrom(category) is { } parent && preset.Styles.TryGetValue(parent, out var own) && own is not null)
+                preset.Styles[category] = own.Clone();
+            else if (source.Styles.TryGetValue(category, out var style))
+                preset.Styles[category] = style.Clone();
+            else
+                continue;
+
             changed = true;
         }
 
@@ -258,6 +274,7 @@ public static class BuiltInPresets
         void Hit(CategoryStyle s)
         {
             s.Text.Font = FontId.GameJupiter;
+            s.Text.CaptionFont = FontId.Interface;
             s.Text.Size = 32f;
             s.Text.OutlineWidth = 2f;
             s.Text.OutlineColor = new Vector4(0f, 0f, 0f, 0.9f);

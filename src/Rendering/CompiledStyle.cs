@@ -38,6 +38,8 @@ public sealed class CompiledStyle
     /// <summary>The label has characters beyond Latin and must use the interface face.</summary>
     public bool LabelFallback;
     public float NameScale;
+    /// <summary>Font of the caption: the style's own caption font, or the number's.</summary>
+    public FontId CaptionFont;
     public IconMode Icon;
     public float IconScale;
     public bool Separators;
@@ -100,6 +102,7 @@ public sealed class CompiledStyle
             Priority = CategoryInfo.IsCritical(category) ? 2 : CategoryInfo.Group(category) is CategoryGroup.Status or CategoryGroup.Misc ? 0 : 1,
 
             Font = t.Font,
+            CaptionFont = t.CaptionFont ?? t.Font,
             Size = Math.Clamp(t.Size, 6f, 160f),
             Color = ColorAssist.Apply(t.Color),
             Tint = t.Tint,

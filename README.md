@@ -230,6 +230,8 @@ The bundled fonts are licensed under the [SIL Open Font License 1.1](https://ope
 
 Classic+ uses the game's own fonts, loaded from your installation; they are not distributed with HitSpark.
 
+The **Custom** font option lets you pick any game, Dalamud or installed Windows font through Dalamud's font chooser. To use a font of your own, install it in Windows and choose it there. HitSpark never distributes these fonts.
+
 ## Thanks
 
 - The [Dalamud](https://github.com/goatcorp/Dalamud) team, for the plugin framework.

@@ -265,6 +265,11 @@ target by default in *Tally*; multi-hit abilities aggregate per action.
   The interface face (client-language glyphs) is baked at 26 px because it carries CJK sets. Candidates, all SIL OFL (final pick in M4): *Bebas Neue* or
   *Anton* (Heroic/Onslaught), *Barlow Condensed* (Tally), *Fredoka* (Elemental), *Cinzel*
   (Grim), *Inter* (Minimal), *Press Start 2P* or *Silkscreen* (Retro).
+- **Custom font** (`FontId.Custom`, nothing bundled): one slot chosen through Dalamud's
+  `SingleFontChooserDialog` (game, Dalamud or installed system fonts). The `SingleFontSpec` is kept
+  in `Configuration.CustomFont` as JSON with type names, read back through a binder that only
+  accepts Dalamud's font identifier types, and baked like the bundled faces (52 px, Latin ranges).
+  It belongs to the user's settings, not the preset, so a shared preset shows the receiver's choice.
 - Status/action names in JP/CN/KR fall back to Dalamud's default font with the language
   glyphs attached.
 - **Icons**: `ITextureProvider.GetFromGameIcon(new GameIconLookup(id))`, cached per id at spawn.

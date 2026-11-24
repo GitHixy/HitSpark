@@ -28,6 +28,13 @@ public static class Changelog
 {
     public static readonly Release[] Releases =
     [
+        new("0.6.0", "Your own font",
+        [
+            new(NoteKind.Added, "Custom font: pick \"Custom (your choice)\" as the font of a number or caption, then \"Choose…\" "
+                                + "to open Dalamud's font chooser with the game's, Dalamud's and your installed Windows fonts. "
+                                + "To use a font of your own, install it in Windows first. The choice is kept in your settings, "
+                                + "so it applies to every preset that uses Custom."),
+        ]),
         new("0.5.0", "Auto-attacks, apart",
         [
             new(NoteKind.Added, "Auto-attack critical hits, direct hits and critical direct hits now have their own styles, so they "

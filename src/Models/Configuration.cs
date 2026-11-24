@@ -46,6 +46,12 @@ public class Configuration
     /// <summary>How strongly colours are corrected, 0 to 1.</summary>
     public float ColorAssistStrength { get; set; } = 1f;
 
+    /// <summary>
+    /// The font behind the "Custom" choice, as picked in Dalamud's font chooser. Stored as the
+    /// chooser's own JSON (see FontService.EncodeCustomFont); empty when nothing was picked.
+    /// </summary>
+    public string CustomFont { get; set; } = string.Empty;
+
     // Other players' numbers (pop-up text the game shows for party members and others)
     public bool ShowParty { get; set; } = true;
     public bool ShowOthers { get; set; } = true;

@@ -5,6 +5,8 @@ using System.Numerics;
 using System.Text;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.FontIdentifier;
+using Dalamud.Interface.ImGuiFontChooserDialog;
 using Dalamud.Interface.Utility.Raii;
 using HitSpark.Models;
 using HitSpark.Presets;
@@ -42,6 +44,7 @@ public partial class ConfigWindow : Window
     private CategoryStyle? copiedStyle;
     private bool changed;
     private double saveAt = double.MaxValue;
+    private SingleFontChooserDialog? fontChooser;
 
     // Diagnostics view state. The filtered list is rebuilt only when the log or the filter changes.
     private int logLevelFilter;
@@ -85,6 +88,7 @@ public partial class ConfigWindow : Window
         {
             BgAlpha = 0.94f;
             changed = false;
+            CollectFontChoice();
 
             Theme.WindowHeader(FontAwesomeIcon.Bolt, "HitSpark", Sections[section].Blurb, DrawHeaderActions);
 
@@ -636,6 +640,8 @@ public partial class ConfigWindow : Window
     {
         Theme.SectionHeader("Font");
         EnumRow("Font", t.Font, v => t.Font = v, FontService.DisplayName);
+        if (t.Font == FontId.Custom || t.CaptionFont == FontId.Custom)
+            CustomFontRow();
         FloatRow("Size", t.Size, v => t.Size = v, 8f, 120f, "%.0f px");
         FloatRow("Letter spacing", t.LetterSpacing, v => t.LetterSpacing = v, -4f, 16f, "%.1f px");
 
@@ -936,6 +942,56 @@ public partial class ConfigWindow : Window
 
         ImGui.SameLine(0, 8);
         Theme.HelpMarker("The font of the label or action name. The game itself uses the interface font for names under its serif numbers.");
+    }
+
+    /// <summary>The font behind "Custom", shared by every preset and category that picks it.</summary>
+    private void CustomFontRow()
+    {
+        Row("Custom font");
+        var current = plugin.Fonts.CustomFont;
+        ImGui.TextColored(current is null ? Theme.TextFaint : Theme.TextMuted,
+            current is null ? "None chosen (interface font)" : FontService.CustomFontName(current));
+        ImGui.SameLine(0, 10);
+        using (ImRaii.Disabled(fontChooser is not null))
+        {
+            if (Theme.GhostButton("Choose…", new Vector2(80, 0)))
+                OpenFontChooser(current);
+        }
+
+        ImGui.SameLine(0, 8);
+        Theme.HelpMarker("Any game, Dalamud or installed Windows font. To use a font of your own, install it in Windows first. " +
+                         "The choice is saved in your settings, not in the preset, so a shared preset that uses Custom shows the receiver's own choice.");
+    }
+
+    private void OpenFontChooser(SingleFontSpec? current)
+    {
+        if (Plugin.PluginInterface.UiBuilder is not UiBuilder uiBuilder)
+        {
+            Plugin.Log.Warning("The font chooser is not available in this Dalamud version");
+            return;
+        }
+
+        var dialog = SingleFontChooserDialog.CreateAuto(uiBuilder);
+        dialog.Title = "HitSpark · Custom font";
+        dialog.PreviewText = "12,345  CRITICAL! 6,789";
+        if (current is not null)
+            dialog.SelectedFont = current;
+        dialog.SetPopupPositionAndSizeToCurrentWindowCenter();
+        fontChooser = dialog;
+    }
+
+    /// <summary>Picks up the chooser's answer on the UI thread once the user confirms or cancels.</summary>
+    private void CollectFontChoice()
+    {
+        if (fontChooser is not { ResultTask.IsCompleted: true } dialog) return;
+        fontChooser = null;
+        if (!dialog.ResultTask.IsCompletedSuccessfully) return; // cancelled
+
+        var spec = dialog.ResultTask.Result;
+        Config.CustomFont = FontService.EncodeCustomFont(spec);
+        plugin.Fonts.SetCustomFont(spec);
+        ConfigService.Save();
+        Plugin.Log.Info("Custom font set to {Font}", FontService.CustomFontName(spec));
     }
 
     private void FlagRow(string label, CategoryStyle style, Involvement flag)
@@ -1469,7 +1525,8 @@ public partial class ConfigWindow : Window
         ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + Math.Min(ImGui.GetContentRegionAvail().X, 520f));
         ImGui.TextColored(Theme.TextMuted,
             "Fonts: Bebas Neue, Anton, Russo One, Barlow, Barlow Condensed, Lilita One, Cinzel Decorative and Press Start 2P, " +
-            "all under the SIL Open Font License (see Assets/Fonts/licenses). The Classic+ numerals are the game's own, loaded from your installation.\n\n" +
+            "all under the SIL Open Font License (see Assets/Fonts/licenses). The Classic+ numerals are the game's own, loaded from your installation. " +
+            "The Custom font is one you pick from your own system or game fonts; it is never distributed with HitSpark.\n\n" +
             "Thanks to the authors of CBT, DamageInfoPlugin, MultiHit and FlyTextFilter, whose work mapped out how the game's combat text flows, " +
             "and to the FFXIVClientStructs and Dalamud teams.");
         ImGui.PopTextWrapPos();

@@ -77,7 +77,7 @@ public sealed class Plugin : IDalamudPlugin
             Log.Info("HitSpark plugin initializing...");
 
             ConfigService = new ConfigurationService();
-            Fonts = new FontService();
+            Fonts = new FontService(FontService.DecodeCustomFont(ConfigService.Configuration.CustomFont));
             Presets = new PresetService(ConfigService);
 
             WorldRenderer = new FlyRenderer(Fonts, worldSpace: true) { Preset = Presets.Compiled };

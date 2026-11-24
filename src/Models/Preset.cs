@@ -26,6 +26,11 @@ public enum FontId
     LilitaOne,
     CinzelDecorative,
     PressStart2P,
+    /// <summary>
+    /// The font the user picked in Dalamud's font chooser (game, Dalamud or installed system fonts).
+    /// It lives in the user's settings, not the preset, so a shared preset uses the receiver's choice.
+    /// </summary>
+    Custom,
 }
 
 public enum Trajectory

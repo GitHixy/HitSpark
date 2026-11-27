@@ -254,6 +254,11 @@ public sealed unsafe class EventPipeline : IDisposable
         var value1 = entry->Value1;
         var actionId = entry->ActionId;
 
+        // EXP arrives as (class/job, amount, bonus %): showing the first value gave "29 EXP" (Rogue's id).
+        // A companion's EXP has no job, so its amount is still in the second value.
+        if (category == Category.Experience && (kind == FlyTextKind.Exp || value1 == 0) && entry->Value2 != 0)
+            value1 = entry->Value2;
+
         switch (category)
         {
             case Category.StatusGained:

@@ -28,6 +28,10 @@ public static class Changelog
 {
     public static readonly Release[] Releases =
     [
+        new("0.6.1", "The right EXP",
+        [
+            new(NoteKind.Fixed, "Experience showed a small, wrong number (like \"29 EXP\") instead of the EXP you actually gained."),
+        ]),
         new("0.6.0", "Your own font",
         [
             new(NoteKind.Added, "Custom font: pick \"Custom (your choice)\" as the font of a number or caption, then \"Choose…\" "
